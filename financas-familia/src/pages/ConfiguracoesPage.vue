@@ -53,6 +53,39 @@
       </div>
     </div>
 
+    <!-- Instalar app -->
+    <div class="card">
+      <h2 class="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+        <SmartphoneIcon class="w-4 h-4 text-primary-600" />
+        Instalar app
+      </h2>
+
+      <div v-if="podeInstalar">
+        <p class="text-sm text-gray-500 mb-3">Adicione na tela inicial do seu celular para acesso rápido, sem precisar abrir o navegador.</p>
+        <button @click="instalar" class="btn-primary w-full flex items-center justify-center gap-2">
+          <DownloadIcon class="w-4 h-4" />
+          Instalar no celular
+        </button>
+      </div>
+
+      <div v-else-if="instalado" class="flex items-center gap-2 text-success text-sm">
+        <CheckCircleIcon class="w-4 h-4" />
+        App já instalado na tela inicial.
+      </div>
+
+      <div v-else-if="isIOS">
+        <p class="text-sm text-gray-500 mb-2">No iPhone ou iPad, use o Safari:</p>
+        <ol class="text-sm text-gray-700 space-y-1 list-decimal list-inside">
+          <li>Toque no botão <strong>Compartilhar</strong> (ícone de quadrado com seta)</li>
+          <li>Selecione <strong>"Adicionar à Tela de Início"</strong></li>
+        </ol>
+      </div>
+
+      <div v-else>
+        <p class="text-sm text-gray-400">Abra o app no Chrome ou Edge para instalar.</p>
+      </div>
+    </div>
+
     <!-- Modal nova categoria -->
     <div v-if="formCatAberto" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" @click.self="formCatAberto = false">
       <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5">
@@ -86,8 +119,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { UsersIcon, CopyIcon, TagIcon, EyeIcon, EyeOffIcon } from 'lucide-vue-next'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { UsersIcon, CopyIcon, TagIcon, EyeIcon, EyeOffIcon, SmartphoneIcon, DownloadIcon, CheckCircleIcon } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useCategoriasStore } from '@/stores/categorias'
 
@@ -96,6 +129,41 @@ const cats       = useCategoriasStore()
 const copiado    = ref(false)
 const formCatAberto = ref(false)
 const salvandoCat   = ref(false)
+
+const promptEvento = ref(null)
+const podeInstalar = ref(false)
+const instalado    = ref(false)
+const isIOS        = computed(() => /iphone|ipad|ipod/i.test(navigator.userAgent))
+
+function onBeforeInstallPrompt(e) {
+  e.preventDefault()
+  promptEvento.value = e
+  podeInstalar.value = true
+}
+
+function onAppInstalled() {
+  podeInstalar.value = false
+  instalado.value    = true
+}
+
+async function instalar() {
+  if (!promptEvento.value) return
+  promptEvento.value.prompt()
+  const { outcome } = await promptEvento.value.userChoice
+  if (outcome === 'accepted') instalado.value = true
+  podeInstalar.value = false
+  promptEvento.value = null
+}
+
+onMounted(() => {
+  window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+  window.addEventListener('appinstalled', onAppInstalled)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
+  window.removeEventListener('appinstalled', onAppInstalled)
+})
 
 const novaCat = ref({ nome: '', tipo: 'despesa', cor: '#6366f1' })
 
