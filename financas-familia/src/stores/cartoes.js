@@ -29,12 +29,29 @@ export const useCartoesStore = defineStore('cartoes', () => {
     cartoes.value.push(data)
   }
 
+  async function atualizar(id, payload) {
+    const { data, error } = await supabase
+      .from('cartoes_credito')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw error
+    const idx = cartoes.value.findIndex(c => c.id === id)
+    if (idx !== -1) cartoes.value[idx] = data
+  }
+
   async function toggleAtivo(id) {
     const cartao = cartoes.value.find(c => c.id === id)
     if (!cartao) return
-    await supabase.from('cartoes_credito').update({ ativo: !cartao.ativo }).eq('id', id)
-    cartao.ativo = !cartao.ativo
+    await atualizar(id, { ativo: !cartao.ativo })
   }
 
-  return { cartoes, ativos, carregar, criar, toggleAtivo }
+  async function remover(id) {
+    const { error } = await supabase.from('cartoes_credito').delete().eq('id', id)
+    if (error) throw error
+    cartoes.value = cartoes.value.filter(c => c.id !== id)
+  }
+
+  return { cartoes, ativos, carregar, criar, atualizar, toggleAtivo, remover }
 })

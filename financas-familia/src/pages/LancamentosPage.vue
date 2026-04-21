@@ -106,14 +106,6 @@
       </div>
     </div>
 
-    <!-- FAB Mobile -->
-    <button
-      @click="formAberto = true"
-      class="fixed bottom-20 right-4 md:hidden w-14 h-14 rounded-full bg-primary-600 text-white shadow-lg flex items-center justify-center hover:bg-primary-700 transition-colors z-30"
-    >
-      <PlusIcon class="w-6 h-6" />
-    </button>
-
     <!-- Modal formulário -->
     <TransacaoForm v-if="formAberto" @fechar="formAberto = false" @salvo="onSalvo" />
 

@@ -27,16 +27,14 @@
           <CreditCardIcon class="w-4 h-4 text-primary-600" />
           Cartões de crédito
         </h2>
-        <button @click="formCartaoAberto = true" class="btn-primary py-1.5 px-3 text-xs">
-          + Novo
-        </button>
+        <button @click="abrirFormCartao(null)" class="btn-primary py-1.5 px-3 text-xs">+ Novo</button>
       </div>
 
       <div v-if="!cartoes.cartoes.length" class="text-sm text-gray-400 py-1">
         Nenhum cartão cadastrado.
       </div>
-      <div class="space-y-1">
-        <div v-for="c in cartoes.cartoes" :key="c.id" class="flex items-center gap-3 py-2">
+      <div class="divide-y divide-gray-50">
+        <div v-for="c in cartoes.cartoes" :key="c.id" class="flex items-center gap-3 py-2.5">
           <div class="w-7 h-7 rounded-lg flex-shrink-0" :style="{ backgroundColor: c.cor }"></div>
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-gray-900 truncate">
@@ -48,47 +46,12 @@
           <span :class="['text-xs px-2 py-0.5 rounded-full', c.ativo ? 'bg-green-100 text-success' : 'bg-gray-100 text-gray-400']">
             {{ c.ativo ? 'Ativo' : 'Inativo' }}
           </span>
-          <button @click="cartoes.toggleAtivo(c.id)" class="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
-            <component :is="c.ativo ? EyeOffIcon : EyeIcon" class="w-4 h-4" />
+          <button @click="abrirFormCartao(c)" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary-600 transition-colors">
+            <PencilIcon class="w-4 h-4" />
           </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal novo cartão -->
-    <div v-if="formCartaoAberto" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" @click.self="formCartaoAberto = false">
-      <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5">
-        <h3 class="font-bold text-gray-900 mb-4">Novo cartão</h3>
-        <div class="space-y-3">
-          <div>
-            <label class="label">Nome do cartão</label>
-            <input v-model="novoCartao.nome" class="input" placeholder="Ex: Nubank, Inter, C6" maxlength="40" />
-          </div>
-          <div>
-            <label class="label">Bandeira <span class="text-gray-400 font-normal">(opcional)</span></label>
-            <select v-model="novoCartao.bandeira" class="input">
-              <option value="">Selecione...</option>
-              <option value="visa">Visa</option>
-              <option value="mastercard">Mastercard</option>
-              <option value="elo">Elo</option>
-              <option value="hipercard">Hipercard</option>
-              <option value="amex">American Express</option>
-            </select>
-          </div>
-          <div>
-            <label class="label">Últimos 4 dígitos <span class="text-gray-400 font-normal">(opcional)</span></label>
-            <input v-model="novoCartao.ultimos_digitos" class="input" placeholder="1234" maxlength="4" pattern="\d{4}" />
-          </div>
-          <div>
-            <label class="label">Cor</label>
-            <input v-model="novoCartao.cor" type="color" class="h-10 w-full rounded-lg border border-gray-300 cursor-pointer" />
-          </div>
-          <div class="flex gap-3 pt-2">
-            <button @click="formCartaoAberto = false" class="btn-secondary flex-1">Cancelar</button>
-            <button @click="criarCartao" :disabled="!novoCartao.nome.trim() || salvandoCartao" class="btn-primary flex-1">
-              {{ salvandoCartao ? 'Salvando...' : 'Criar' }}
-            </button>
-          </div>
+          <button @click="confirmarExclusaoCartao(c)" class="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-danger transition-colors">
+            <Trash2Icon class="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>
@@ -100,17 +63,11 @@
           <TagIcon class="w-4 h-4 text-primary-600" />
           Categorias
         </h2>
-        <button @click="formCatAberto = true" class="btn-primary py-1.5 px-3 text-xs">
-          + Nova
-        </button>
+        <button @click="abrirFormCat(null)" class="btn-primary py-1.5 px-3 text-xs">+ Nova</button>
       </div>
 
-      <div class="space-y-1">
-        <div
-          v-for="cat in cats.categorias"
-          :key="cat.id"
-          class="flex items-center gap-3 py-2"
-        >
+      <div class="divide-y divide-gray-50">
+        <div v-for="cat in cats.categorias" :key="cat.id" class="flex items-center gap-3 py-2.5">
           <div class="w-7 h-7 rounded-lg flex-shrink-0" :style="{ backgroundColor: cat.cor }"></div>
           <div class="flex-1 min-w-0">
             <p class="text-sm font-medium text-gray-900 truncate">{{ cat.nome }}</p>
@@ -119,8 +76,11 @@
           <span :class="['text-xs px-2 py-0.5 rounded-full', cat.ativa ? 'bg-green-100 text-success' : 'bg-gray-100 text-gray-400']">
             {{ cat.ativa ? 'Ativa' : 'Inativa' }}
           </span>
-          <button @click="cats.toggleAtiva(cat.id)" class="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
-            <component :is="cat.ativa ? EyeOffIcon : EyeIcon" class="w-4 h-4" />
+          <button @click="abrirFormCat(cat)" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary-600 transition-colors">
+            <PencilIcon class="w-4 h-4" />
+          </button>
+          <button @click="confirmarExclusaoCat(cat)" class="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-danger transition-colors">
+            <Trash2Icon class="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -132,20 +92,17 @@
         <SmartphoneIcon class="w-4 h-4 text-primary-600" />
         Instalar app
       </h2>
-
       <div v-if="podeInstalar">
-        <p class="text-sm text-gray-500 mb-3">Adicione na tela inicial do seu celular para acesso rápido, sem precisar abrir o navegador.</p>
+        <p class="text-sm text-gray-500 mb-3">Adicione na tela inicial do seu celular para acesso rápido.</p>
         <button @click="instalar" class="btn-primary w-full flex items-center justify-center gap-2">
           <DownloadIcon class="w-4 h-4" />
           Instalar no celular
         </button>
       </div>
-
       <div v-else-if="instalado" class="flex items-center gap-2 text-success text-sm">
         <CheckCircleIcon class="w-4 h-4" />
         App já instalado na tela inicial.
       </div>
-
       <div v-else-if="isIOS">
         <p class="text-sm text-gray-500 mb-2">No iPhone ou iPad, use o Safari:</p>
         <ol class="text-sm text-gray-700 space-y-1 list-decimal list-inside">
@@ -153,36 +110,139 @@
           <li>Selecione <strong>"Adicionar à Tela de Início"</strong></li>
         </ol>
       </div>
-
       <div v-else>
         <p class="text-sm text-gray-400">Abra o app no Chrome ou Edge para instalar.</p>
       </div>
     </div>
 
-    <!-- Modal nova categoria -->
+    <!-- Modal cartão (criar / editar) -->
+    <div v-if="formCartaoAberto" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" @click.self="formCartaoAberto = false">
+      <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5">
+        <h3 class="font-bold text-gray-900 mb-4">{{ editandoCartao ? 'Editar cartão' : 'Novo cartão' }}</h3>
+        <div class="space-y-3">
+          <div>
+            <label class="label">Nome do cartão</label>
+            <input v-model="formCartao.nome" class="input" placeholder="Ex: Nubank, Inter, C6" maxlength="40" />
+          </div>
+          <div>
+            <label class="label">Bandeira <span class="text-gray-400 font-normal">(opcional)</span></label>
+            <select v-model="formCartao.bandeira" class="input">
+              <option value="">Selecione...</option>
+              <option value="visa">Visa</option>
+              <option value="mastercard">Mastercard</option>
+              <option value="elo">Elo</option>
+              <option value="hipercard">Hipercard</option>
+              <option value="amex">American Express</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Últimos 4 dígitos <span class="text-gray-400 font-normal">(opcional)</span></label>
+            <input v-model="formCartao.ultimos_digitos" class="input" placeholder="1234" maxlength="4" />
+          </div>
+          <div>
+            <label class="label">Cor</label>
+            <input v-model="formCartao.cor" type="color" class="h-10 w-full rounded-lg border border-gray-300 cursor-pointer" />
+          </div>
+          <div v-if="editandoCartao" class="flex items-center justify-between py-1">
+            <span class="text-sm text-gray-700">Ativo</span>
+            <button
+              type="button"
+              @click="formCartao.ativo = !formCartao.ativo"
+              :class="['relative w-10 h-6 rounded-full transition-colors', formCartao.ativo ? 'bg-primary-600' : 'bg-gray-200']"
+            >
+              <span :class="['absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform', formCartao.ativo ? 'left-5' : 'left-1']"></span>
+            </button>
+          </div>
+          <div class="flex gap-3 pt-2">
+            <button @click="formCartaoAberto = false" class="btn-secondary flex-1">Cancelar</button>
+            <button @click="salvarCartao" :disabled="!formCartao.nome.trim() || salvandoCartao" class="btn-primary flex-1">
+              {{ salvandoCartao ? 'Salvando...' : 'Salvar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal categoria (criar / editar) -->
     <div v-if="formCatAberto" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" @click.self="formCatAberto = false">
       <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5">
-        <h3 class="font-bold text-gray-900 mb-4">Nova categoria</h3>
+        <h3 class="font-bold text-gray-900 mb-4">{{ editandoCat ? 'Editar categoria' : 'Nova categoria' }}</h3>
         <div class="space-y-3">
           <div>
             <label class="label">Nome</label>
-            <input v-model="novaCat.nome" class="input" placeholder="Ex: Academia" maxlength="40" />
+            <input v-model="formCat.nome" class="input" placeholder="Ex: Academia" maxlength="40" />
           </div>
-          <div>
+          <div v-if="!editandoCat">
             <label class="label">Tipo</label>
-            <select v-model="novaCat.tipo" class="input">
+            <select v-model="formCat.tipo" class="input">
               <option value="despesa">Despesa</option>
               <option value="receita">Receita</option>
             </select>
           </div>
+          <div v-else class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+            <span class="text-sm text-gray-500">Tipo:</span>
+            <span class="text-sm font-medium text-gray-900">{{ formCat.tipo === 'receita' ? 'Receita' : 'Despesa' }}</span>
+            <span class="text-xs text-gray-400 ml-1">(não pode ser alterado)</span>
+          </div>
           <div>
             <label class="label">Cor</label>
-            <input v-model="novaCat.cor" type="color" class="h-10 w-full rounded-lg border border-gray-300 cursor-pointer" />
+            <input v-model="formCat.cor" type="color" class="h-10 w-full rounded-lg border border-gray-300 cursor-pointer" />
+          </div>
+          <div v-if="editandoCat" class="flex items-center justify-between py-1">
+            <span class="text-sm text-gray-700">Ativa</span>
+            <button
+              type="button"
+              @click="formCat.ativa = !formCat.ativa"
+              :class="['relative w-10 h-6 rounded-full transition-colors', formCat.ativa ? 'bg-primary-600' : 'bg-gray-200']"
+            >
+              <span :class="['absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform', formCat.ativa ? 'left-5' : 'left-1']"></span>
+            </button>
           </div>
           <div class="flex gap-3 pt-2">
             <button @click="formCatAberto = false" class="btn-secondary flex-1">Cancelar</button>
-            <button @click="criarCategoria" :disabled="!novaCat.nome.trim() || salvandoCat" class="btn-primary flex-1">
-              {{ salvandoCat ? 'Salvando...' : 'Criar' }}
+            <button @click="salvarCategoria" :disabled="!formCat.nome.trim() || salvandoCat" class="btn-primary flex-1">
+              {{ salvandoCat ? 'Salvando...' : 'Salvar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal confirmação exclusão -->
+    <div v-if="confirmacao" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" @click.self="confirmacao = null">
+      <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+        <div v-if="confirmacao.carregando" class="text-center py-4">
+          <div class="w-8 h-8 border-2 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        </div>
+        <div v-else>
+          <Trash2Icon class="w-10 h-10 text-danger mx-auto mb-3" />
+          <p class="font-semibold text-gray-900 text-center mb-1">{{ confirmacao.nome }}</p>
+
+          <div v-if="confirmacao.totalRegistros > 0" class="text-center mb-5">
+            <p class="text-sm text-gray-500">
+              Possui <strong>{{ confirmacao.totalRegistros }} lançamento(s)</strong> vinculado(s).<br>
+              Não é possível excluir — apenas desativar.
+            </p>
+          </div>
+          <div v-else class="text-center mb-5">
+            <p class="text-sm text-gray-500">Nenhum lançamento vinculado. Deseja excluir permanentemente?</p>
+          </div>
+
+          <div class="flex gap-3">
+            <button @click="confirmacao = null" class="btn-secondary flex-1">Cancelar</button>
+            <button
+              v-if="confirmacao.totalRegistros > 0"
+              @click="desativarConfirmado"
+              class="flex-1 py-2.5 px-4 rounded-xl bg-gray-100 text-gray-700 font-semibold text-sm hover:bg-gray-200 transition-colors"
+            >
+              {{ confirmacao.ativo ? 'Desativar' : 'Reativar' }}
+            </button>
+            <button
+              v-else
+              @click="excluirConfirmado"
+              class="btn-danger flex-1"
+            >
+              Excluir
             </button>
           </div>
         </div>
@@ -193,33 +253,37 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { UsersIcon, CopyIcon, TagIcon, EyeIcon, EyeOffIcon, SmartphoneIcon, DownloadIcon, CheckCircleIcon, CreditCardIcon } from 'lucide-vue-next'
+import {
+  UsersIcon, CopyIcon, TagIcon, PencilIcon, Trash2Icon,
+  SmartphoneIcon, DownloadIcon, CheckCircleIcon, CreditCardIcon,
+} from 'lucide-vue-next'
+import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 import { useCategoriasStore } from '@/stores/categorias'
 import { useCartoesStore } from '@/stores/cartoes'
 
-const auth       = useAuthStore()
-const cats       = useCategoriasStore()
-const cartoes    = useCartoesStore()
-const copiado    = ref(false)
-const formCatAberto = ref(false)
-const salvandoCat   = ref(false)
+const auth    = useAuthStore()
+const cats    = useCategoriasStore()
+const cartoes = useCartoesStore()
+const copiado = ref(false)
 
+// --- Copiar código ---
+function copiarCodigo() {
+  const codigo = auth.profile?.familias?.codigo_convite
+  if (!codigo) return
+  navigator.clipboard.writeText(codigo)
+  copiado.value = true
+  setTimeout(() => (copiado.value = false), 2000)
+}
+
+// --- PWA install ---
 const promptEvento = ref(null)
 const podeInstalar = ref(false)
 const instalado    = ref(false)
 const isIOS        = computed(() => /iphone|ipad|ipod/i.test(navigator.userAgent))
 
-function onBeforeInstallPrompt(e) {
-  e.preventDefault()
-  promptEvento.value = e
-  podeInstalar.value = true
-}
-
-function onAppInstalled() {
-  podeInstalar.value = false
-  instalado.value    = true
-}
+function onBeforeInstallPrompt(e) { e.preventDefault(); promptEvento.value = e; podeInstalar.value = true }
+function onAppInstalled()         { podeInstalar.value = false; instalado.value = true }
 
 async function instalar() {
   if (!promptEvento.value) return
@@ -230,7 +294,113 @@ async function instalar() {
   promptEvento.value = null
 }
 
+// --- Form cartão ---
+const formCartaoAberto = ref(false)
+const salvandoCartao   = ref(false)
+const editandoCartao   = ref(null)
+const formCartao = ref({ nome: '', bandeira: '', ultimos_digitos: '', cor: '#6366f1' })
+
+function abrirFormCartao(c) {
+  editandoCartao.value = c
+  formCartao.value = c
+    ? { nome: c.nome, bandeira: c.bandeira ?? '', ultimos_digitos: c.ultimos_digitos ?? '', cor: c.cor, ativo: c.ativo }
+    : { nome: '', bandeira: '', ultimos_digitos: '', cor: '#6366f1', ativo: true }
+  formCartaoAberto.value = true
+}
+
+async function salvarCartao() {
+  salvandoCartao.value = true
+  try {
+    const payload = {
+      nome:            formCartao.value.nome.trim(),
+      bandeira:        formCartao.value.bandeira || null,
+      ultimos_digitos: formCartao.value.ultimos_digitos || null,
+      cor:             formCartao.value.cor,
+      ...(editandoCartao.value ? { ativo: formCartao.value.ativo } : {}),
+    }
+    if (editandoCartao.value) {
+      await cartoes.atualizar(editandoCartao.value.id, payload)
+    } else {
+      await cartoes.criar(payload)
+    }
+    formCartaoAberto.value = false
+  } finally {
+    salvandoCartao.value = false
+  }
+}
+
+// --- Form categoria ---
+const formCatAberto = ref(false)
+const salvandoCat   = ref(false)
+const editandoCat   = ref(null)
+const formCat = ref({ nome: '', tipo: 'despesa', cor: '#6366f1' })
+
+function abrirFormCat(cat) {
+  editandoCat.value = cat
+  formCat.value = cat
+    ? { nome: cat.nome, tipo: cat.tipo, cor: cat.cor, ativa: cat.ativa }
+    : { nome: '', tipo: 'despesa', cor: '#6366f1', ativa: true }
+  formCatAberto.value = true
+}
+
+async function salvarCategoria() {
+  salvandoCat.value = true
+  try {
+    if (editandoCat.value) {
+      await cats.atualizar(editandoCat.value.id, { nome: formCat.value.nome.trim(), cor: formCat.value.cor, ativa: formCat.value.ativa })
+    } else {
+      await cats.criar({ nome: formCat.value.nome.trim(), tipo: formCat.value.tipo, cor: formCat.value.cor })
+    }
+    formCatAberto.value = false
+  } finally {
+    salvandoCat.value = false
+  }
+}
+
+// --- Confirmação exclusão / desativação ---
+const confirmacao = ref(null)
+
+async function confirmarExclusaoCartao(c) {
+  confirmacao.value = { tipo: 'cartao', id: c.id, nome: c.nome, ativo: c.ativo, carregando: true, totalRegistros: 0 }
+  const { count } = await supabase
+    .from('transacoes')
+    .select('id', { count: 'exact', head: true })
+    .eq('cartao_id', c.id)
+  confirmacao.value = { ...confirmacao.value, carregando: false, totalRegistros: count ?? 0 }
+}
+
+async function confirmarExclusaoCat(cat) {
+  confirmacao.value = { tipo: 'categoria', id: cat.id, nome: cat.nome, ativo: cat.ativa, carregando: true, totalRegistros: 0 }
+  const { count } = await supabase
+    .from('transacoes')
+    .select('id', { count: 'exact', head: true })
+    .eq('categoria_id', cat.id)
+  confirmacao.value = { ...confirmacao.value, carregando: false, totalRegistros: count ?? 0 }
+}
+
+async function desativarConfirmado() {
+  const { tipo, id, ativo } = confirmacao.value
+  if (tipo === 'cartao') {
+    await cartoes.atualizar(id, { ativo: !ativo })
+  } else {
+    await cats.toggleAtiva(id)
+  }
+  confirmacao.value = null
+}
+
+async function excluirConfirmado() {
+  const { tipo, id } = confirmacao.value
+  if (tipo === 'cartao') {
+    await cartoes.remover(id)
+  } else {
+    await cats.remover(id)
+  }
+  confirmacao.value = null
+}
+
 onMounted(() => {
+  cats.carregar()
+  cartoes.carregar()
   window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
   window.addEventListener('appinstalled', onAppInstalled)
 })
@@ -239,47 +409,4 @@ onUnmounted(() => {
   window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt)
   window.removeEventListener('appinstalled', onAppInstalled)
 })
-
-const novaCat = ref({ nome: '', tipo: 'despesa', cor: '#6366f1' })
-
-function copiarCodigo() {
-  const codigo = auth.profile?.familias?.codigo_convite
-  if (!codigo) return
-  navigator.clipboard.writeText(codigo)
-  copiado.value = true
-  setTimeout(() => (copiado.value = false), 2000)
-}
-
-async function criarCategoria() {
-  salvandoCat.value = true
-  try {
-    await cats.criar({ nome: novaCat.value.nome.trim(), tipo: novaCat.value.tipo, cor: novaCat.value.cor })
-    formCatAberto.value = false
-    novaCat.value = { nome: '', tipo: 'despesa', cor: '#6366f1' }
-  } finally {
-    salvandoCat.value = false
-  }
-}
-
-const formCartaoAberto = ref(false)
-const salvandoCartao   = ref(false)
-const novoCartao = ref({ nome: '', bandeira: '', ultimos_digitos: '', cor: '#6366f1' })
-
-async function criarCartao() {
-  salvandoCartao.value = true
-  try {
-    await cartoes.criar({
-      nome:            novoCartao.value.nome.trim(),
-      bandeira:        novoCartao.value.bandeira || null,
-      ultimos_digitos: novoCartao.value.ultimos_digitos || null,
-      cor:             novoCartao.value.cor,
-    })
-    formCartaoAberto.value = false
-    novoCartao.value = { nome: '', bandeira: '', ultimos_digitos: '', cor: '#6366f1' }
-  } finally {
-    salvandoCartao.value = false
-  }
-}
-
-onMounted(() => { cats.carregar(); cartoes.carregar() })
 </script>

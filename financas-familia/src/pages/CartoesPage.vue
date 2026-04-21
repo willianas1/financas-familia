@@ -24,13 +24,12 @@
 
     <!-- Cards por cartão -->
     <div v-for="cartao in cartoes.ativos" :key="cartao.id" class="card overflow-hidden">
-      <!-- Header clicável -->
-      <button
-        class="flex items-center justify-between w-full p-4 -mx-5 -mt-5 mb-4 text-left"
+      <!-- Header do cartão -->
+      <div
+        class="flex items-center justify-between p-4 -mx-5 -mt-5 mb-4"
         :style="{ backgroundColor: cartao.cor }"
-        @click="abrirDetalhe(cartao)"
       >
-        <div class="flex items-center gap-3">
+        <button class="flex items-center gap-3 text-left flex-1" @click="abrirDetalhe(cartao)">
           <CreditCardIcon class="w-5 h-5 text-white/80" />
           <div>
             <p class="font-bold text-white">{{ cartao.nome }}</p>
@@ -39,15 +38,21 @@
               <span v-if="cartao.ultimos_digitos">·· {{ cartao.ultimos_digitos }}</span>
             </p>
           </div>
-        </div>
-        <div class="flex items-center gap-3">
-          <div class="text-right">
+        </button>
+        <div class="flex items-center gap-2">
+          <div class="text-right" @click="abrirDetalhe(cartao)" style="cursor:pointer">
             <p class="text-white/70 text-xs">Total no mês</p>
             <p class="text-white font-bold text-lg">{{ formatarMoeda(totalPorCartao[cartao.id] ?? 0) }}</p>
           </div>
-          <ChevronRightIcon class="w-4 h-4 text-white/60" />
+          <button
+            @click.stop="abrirFormDespesa(cartao)"
+            class="ml-1 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+            title="Nova despesa neste cartão"
+          >
+            <PlusIcon class="w-4 h-4 text-white" />
+          </button>
         </div>
-      </button>
+      </div>
 
       <!-- Lista de despesas do mês -->
       <div v-if="!despesasPorCartao[cartao.id]?.length" class="text-sm text-gray-400 py-2 text-center">
@@ -74,6 +79,14 @@
         </div>
       </div>
     </div>
+
+    <!-- Form despesa rápida por cartão -->
+    <TransacaoForm
+      v-if="formDespesaAberto"
+      :inicial="{ tipo: 'despesa', cartao_id: cartaoFormDespesa?.id }"
+      @fechar="formDespesaAberto = false"
+      @salvo="onDespesaSalva"
+    />
 
     <!-- Drawer: detalhe total do cartão -->
     <Transition name="drawer">
@@ -156,11 +169,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { ChevronLeftIcon, ChevronRightIcon, CreditCardIcon } from 'lucide-vue-next'
+import { ChevronLeftIcon, ChevronRightIcon, CreditCardIcon, PlusIcon } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 import { useCartoesStore } from '@/stores/cartoes'
 import { useTransacoesStore } from '@/stores/transacoes'
 import { useCategoriasStore } from '@/stores/categorias'
+import TransacaoForm from '@/components/transacoes/TransacaoForm.vue'
 
 const cartoes    = useCartoesStore()
 const transacoes = useTransacoesStore()
@@ -193,6 +207,19 @@ const totalPorCartao = computed(() => {
   })
   return map
 })
+
+// --- Despesa rápida por cartão ---
+const formDespesaAberto  = ref(false)
+const cartaoFormDespesa  = ref(null)
+
+function abrirFormDespesa(cartao) {
+  cartaoFormDespesa.value = cartao
+  formDespesaAberto.value = true
+}
+
+async function onDespesaSalva() {
+  await transacoes.carregar(mesAtual.value, anoAtual.value)
+}
 
 // --- Detalhe total do cartão ---
 const cartaoAberto      = ref(null)

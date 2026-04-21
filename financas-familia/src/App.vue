@@ -19,23 +19,47 @@
           <RouterView />
         </main>
       </div>
+
+      <!-- FAB global -->
+      <button
+        @click="fabAberto = true"
+        class="fixed bottom-20 right-4 md:bottom-6 w-14 h-14 rounded-full bg-danger text-white shadow-lg flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all z-30"
+      >
+        <PlusIcon class="w-6 h-6" />
+      </button>
+
+      <TransacaoForm
+        v-if="fabAberto"
+        :inicial="{ tipo: 'despesa' }"
+        @fechar="fabAberto = false"
+        @salvo="onFabSalvo"
+      />
     </div>
   </template>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { PlusIcon } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificacoesStore } from '@/stores/notificacoes'
+import { useTransacoesStore } from '@/stores/transacoes'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import AppNav from '@/components/layout/AppNav.vue'
+import TransacaoForm from '@/components/transacoes/TransacaoForm.vue'
 
 const auth         = useAuthStore()
 const notificacoes = useNotificacoesStore()
+const transacoes   = useTransacoesStore()
 const route        = useRoute()
+const fabAberto    = ref(false)
 
 const rotaPublica = computed(() => route.meta.public)
+
+async function onFabSalvo() {
+  await transacoes.carregar()
+}
 
 onMounted(async () => {
   await auth.init()

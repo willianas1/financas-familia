@@ -102,14 +102,6 @@
       <ChevronRightIcon class="w-4 h-4 text-primary-600" />
     </RouterLink>
 
-    <!-- FAB -->
-    <button
-      @click="abrirForm('despesa')"
-      class="fixed bottom-20 right-4 md:bottom-6 w-14 h-14 rounded-full bg-danger text-white shadow-lg flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all z-30"
-    >
-      <PlusIcon class="w-6 h-6" />
-    </button>
-
     <TransacaoForm v-if="formAberto" :inicial="{ tipo: tipoInicial }" @fechar="formAberto = false" @salvo="carregar" />
   </div>
 </template>

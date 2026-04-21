@@ -121,7 +121,40 @@
 
         <!-- Categoria -->
         <div>
-          <label class="label">Categoria</label>
+          <div class="flex items-center justify-between mb-1">
+            <label class="label mb-0">Categoria</label>
+            <button
+              type="button"
+              @click="novaCategoria = !novaCategoria; novaCatNome = ''; novaCatCor = '#6366f1'"
+              class="text-xs text-primary-600 hover:underline flex items-center gap-1"
+            >
+              <PlusIcon class="w-3 h-3" />
+              {{ novaCategoria ? 'Cancelar' : 'Nova categoria' }}
+            </button>
+          </div>
+
+          <!-- Mini-form nova categoria -->
+          <div v-if="novaCategoria" class="bg-primary-50 rounded-xl p-3 mb-2 space-y-2">
+            <input
+              v-model="novaCatNome"
+              class="input text-sm"
+              placeholder="Nome da categoria"
+              maxlength="40"
+              autofocus
+            />
+            <div class="flex items-center gap-2">
+              <input v-model="novaCatCor" type="color" class="h-8 w-12 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0" />
+              <button
+                type="button"
+                @click="criarCategoriaInline"
+                :disabled="!novaCatNome.trim() || criandoCat"
+                class="btn-primary flex-1 py-2 text-sm"
+              >
+                {{ criandoCat ? 'Criando...' : 'Criar e selecionar' }}
+              </button>
+            </div>
+          </div>
+
           <select v-model="form.categoria_id" class="input" required>
             <option value="" disabled>Selecione...</option>
             <option v-for="c in categoriasVisiveis" :key="c.id" :value="c.id">{{ c.nome }}</option>
@@ -152,7 +185,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { XIcon, TrendingUpIcon, TrendingDownIcon } from 'lucide-vue-next'
+import { XIcon, TrendingUpIcon, TrendingDownIcon, PlusIcon } from 'lucide-vue-next'
 import { useTransacoesStore } from '@/stores/transacoes'
 import { useCategoriasStore } from '@/stores/categorias'
 import { useCartoesStore } from '@/stores/cartoes'
@@ -171,7 +204,7 @@ const form = ref({
   tipo:         props.inicial?.tipo         ?? 'despesa',
   valor:        props.inicial?.valor        ?? '',
   categoria_id: props.inicial?.categoria_id ?? '',
-  cartao_id:    '',
+  cartao_id:    props.inicial?.cartao_id    ?? '',
   data:         props.inicial?.data         ?? hoje,
   descricao:    props.inicial?.descricao    ?? '',
   parcelado:    false,
@@ -202,12 +235,36 @@ const labelBotao = computed(() => {
   return 'Salvar'
 })
 
-watch(() => form.value.tipo, () => { form.value.categoria_id = ''; form.value.cartao_id = '' })
+watch(() => form.value.tipo, () => {
+  form.value.categoria_id = ''
+  form.value.cartao_id    = ''
+  novaCategoria.value     = false
+})
 
 onMounted(() => { if (!cartoes.cartoes.length) cartoes.carregar() })
 
-const salvando = ref(false)
-const erro     = ref('')
+const salvando     = ref(false)
+const erro         = ref('')
+const novaCategoria = ref(false)
+const novaCatNome   = ref('')
+const novaCatCor    = ref('#6366f1')
+const criandoCat    = ref(false)
+
+async function criarCategoriaInline() {
+  if (!novaCatNome.value.trim()) return
+  criandoCat.value = true
+  try {
+    const nova = await cats.criar({
+      nome: novaCatNome.value.trim(),
+      tipo: form.value.tipo,
+      cor:  novaCatCor.value,
+    })
+    form.value.categoria_id = nova.id
+    novaCategoria.value = false
+  } finally {
+    criandoCat.value = false
+  }
+}
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 

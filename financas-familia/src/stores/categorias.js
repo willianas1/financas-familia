@@ -53,5 +53,11 @@ export const useCategoriasStore = defineStore('categorias', () => {
     return atualizar(id, { ativa: !cat.ativa })
   }
 
-  return { categorias, loading, receitas, despesas, carregar, criar, atualizar, toggleAtiva }
+  async function remover(id) {
+    const { error } = await supabase.from('categorias').delete().eq('id', id)
+    if (error) throw error
+    categorias.value = categorias.value.filter(c => c.id !== id)
+  }
+
+  return { categorias, loading, receitas, despesas, carregar, criar, atualizar, toggleAtiva, remover }
 })
