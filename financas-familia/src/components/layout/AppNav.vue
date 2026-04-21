@@ -33,12 +33,13 @@
 </template>
 
 <script setup>
-import { LayoutDashboardIcon, ListIcon, TargetIcon, SettingsIcon } from 'lucide-vue-next'
+import { LayoutDashboardIcon, ListIcon, TargetIcon, CreditCardIcon, SettingsIcon } from 'lucide-vue-next'
 
 const navItems = [
   { to: '/',              label: 'Início',       icon: LayoutDashboardIcon },
   { to: '/lancamentos',   label: 'Lançamentos',  icon: ListIcon },
   { to: '/orcamentos',    label: 'Orçamentos',   icon: TargetIcon },
+  { to: '/cartoes',       label: 'Cartões',      icon: CreditCardIcon },
   { to: '/configuracoes', label: 'Config.',      icon: SettingsIcon },
 ]
 </script>

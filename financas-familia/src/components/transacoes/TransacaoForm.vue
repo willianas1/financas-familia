@@ -110,6 +110,15 @@
           </div>
         </template>
 
+        <!-- Cartão de crédito (só despesa) -->
+        <div v-if="form.tipo === 'despesa'">
+          <label class="label">Cartão de crédito <span class="text-gray-400 font-normal">(opcional)</span></label>
+          <select v-model="form.cartao_id" class="input">
+            <option value="">À vista / sem cartão</option>
+            <option v-for="c in cartoes.ativos" :key="c.id" :value="c.id">{{ c.nome }}</option>
+          </select>
+        </div>
+
         <!-- Categoria -->
         <div>
           <label class="label">Categoria</label>
@@ -142,16 +151,18 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { XIcon, TrendingUpIcon, TrendingDownIcon } from 'lucide-vue-next'
 import { useTransacoesStore } from '@/stores/transacoes'
 import { useCategoriasStore } from '@/stores/categorias'
+import { useCartoesStore } from '@/stores/cartoes'
 
 const props = defineProps({ inicial: { type: Object, default: null } })
 const emit  = defineEmits(['fechar', 'salvo'])
 
 const transacoes = useTransacoesStore()
 const cats       = useCategoriasStore()
+const cartoes    = useCartoesStore()
 
 const editando = computed(() => !!props.inicial?.id)
 const hoje     = new Date().toISOString().split('T')[0]
@@ -160,6 +171,7 @@ const form = ref({
   tipo:         props.inicial?.tipo         ?? 'despesa',
   valor:        props.inicial?.valor        ?? '',
   categoria_id: props.inicial?.categoria_id ?? '',
+  cartao_id:    '',
   data:         props.inicial?.data         ?? hoje,
   descricao:    props.inicial?.descricao    ?? '',
   parcelado:    false,
@@ -190,7 +202,9 @@ const labelBotao = computed(() => {
   return 'Salvar'
 })
 
-watch(() => form.value.tipo, () => { form.value.categoria_id = '' })
+watch(() => form.value.tipo, () => { form.value.categoria_id = ''; form.value.cartao_id = '' })
+
+onMounted(() => { if (!cartoes.cartoes.length) cartoes.carregar() })
 
 const salvando = ref(false)
 const erro     = ref('')
@@ -212,11 +226,14 @@ async function salvar() {
   erro.value = ''
   salvando.value = true
   try {
+    const cartaoId = form.value.tipo === 'despesa' && form.value.cartao_id ? form.value.cartao_id : null
+
     if (form.value.recorrente) {
       await transacoes.criarRecorrente({
         tipo:         form.value.tipo,
         valor:        Number(form.value.valor),
         categoria_id: form.value.categoria_id,
+        cartao_id:    cartaoId,
         data_inicio:  form.value.data,
         descricao:    form.value.descricao || null,
         num_meses:    form.value.numMeses,
@@ -234,12 +251,14 @@ async function salvar() {
         data_inicio:   form.value.data,
         tipo_calculo:  form.value.tipoParcela,
         categoria_id:  form.value.categoria_id,
+        cartao_id:     cartaoId,
       })
     } else {
       await transacoes.criar({
         tipo:         form.value.tipo,
         valor:        Number(form.value.valor),
         categoria_id: form.value.categoria_id,
+        cartao_id:    cartaoId,
         data:         form.value.data,
         descricao:    form.value.descricao || null,
       })

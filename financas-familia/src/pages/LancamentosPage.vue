@@ -81,10 +81,17 @@
           <p class="text-sm font-medium text-gray-900 truncate">
             {{ t.descricao || t.categorias?.nome || '—' }}
           </p>
-          <p class="text-xs text-gray-400">
-            {{ formatarDataCurta(t.data) }}
-            <span v-if="t.num_parcela" class="ml-1 text-primary-500">· parcela {{ t.num_parcela }}</span>
-          </p>
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-xs text-gray-400">{{ formatarDataCurta(t.data) }}</span>
+            <span v-if="t.num_parcela" class="text-xs text-primary-500">· parcela {{ t.num_parcela }}</span>
+            <span
+              v-if="t.cartoes_credito"
+              class="text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white"
+              :style="{ backgroundColor: t.cartoes_credito.cor }"
+            >
+              {{ t.cartoes_credito.nome }}
+            </span>
+          </div>
         </div>
 
         <div class="text-right flex-shrink-0">

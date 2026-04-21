@@ -42,6 +42,9 @@
     <!-- Gráfico de categorias -->
     <GraficoCategorias :transacoes="transacoes.transacoes" />
 
+    <!-- Gráfico de cartões -->
+    <GraficoCartoes :transacoes="transacoes.transacoes" :cartoes="cartoesList" />
+
     <!-- Orçamentos com progresso -->
     <div v-if="orcamentos.orcamentos.length" class="card">
       <h2 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -119,7 +122,9 @@ import { useTransacoesStore } from '@/stores/transacoes'
 import { useCategoriasStore } from '@/stores/categorias'
 import { useOrcamentosStore } from '@/stores/orcamentos'
 import { useNotificacoesStore } from '@/stores/notificacoes'
+import { useCartoesStore } from '@/stores/cartoes'
 import GraficoCategorias from '@/components/dashboard/GraficoCategorias.vue'
+import GraficoCartoes from '@/components/dashboard/GraficoCartoes.vue'
 import GraficoComparativo from '@/components/dashboard/GraficoComparativo.vue'
 import ProjecaoFutura from '@/components/dashboard/ProjecaoFutura.vue'
 import TransacaoForm from '@/components/transacoes/TransacaoForm.vue'
@@ -129,6 +134,8 @@ const transacoes   = useTransacoesStore()
 const categorias   = useCategoriasStore()
 const orcamentos   = useOrcamentosStore()
 const notificacoes = useNotificacoesStore()
+const cartoesStore = useCartoesStore()
+const cartoesList  = computed(() => cartoesStore.cartoes)
 const formAberto   = ref(false)
 const tipoInicial  = ref('despesa')
 
@@ -179,6 +186,7 @@ function formatarData(iso) {
 
 async function carregar() {
   await categorias.carregar()
+  await cartoesStore.carregar()
   await transacoes.carregar(mes, ano)
   await orcamentos.carregar(mes, ano)
   // Gera alertas de orçamento no sino

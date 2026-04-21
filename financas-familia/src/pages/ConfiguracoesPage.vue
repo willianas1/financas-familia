@@ -20,6 +20,79 @@
       </div>
     </div>
 
+    <!-- Cartões de crédito -->
+    <div class="card">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold text-gray-900 flex items-center gap-2">
+          <CreditCardIcon class="w-4 h-4 text-primary-600" />
+          Cartões de crédito
+        </h2>
+        <button @click="formCartaoAberto = true" class="btn-primary py-1.5 px-3 text-xs">
+          + Novo
+        </button>
+      </div>
+
+      <div v-if="!cartoes.cartoes.length" class="text-sm text-gray-400 py-1">
+        Nenhum cartão cadastrado.
+      </div>
+      <div class="space-y-1">
+        <div v-for="c in cartoes.cartoes" :key="c.id" class="flex items-center gap-3 py-2">
+          <div class="w-7 h-7 rounded-lg flex-shrink-0" :style="{ backgroundColor: c.cor }"></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">
+              {{ c.nome }}
+              <span v-if="c.ultimos_digitos" class="text-gray-400 font-normal">·· {{ c.ultimos_digitos }}</span>
+            </p>
+            <p class="text-xs text-gray-400 capitalize">{{ c.bandeira || 'sem bandeira' }}</p>
+          </div>
+          <span :class="['text-xs px-2 py-0.5 rounded-full', c.ativo ? 'bg-green-100 text-success' : 'bg-gray-100 text-gray-400']">
+            {{ c.ativo ? 'Ativo' : 'Inativo' }}
+          </span>
+          <button @click="cartoes.toggleAtivo(c.id)" class="p-1 rounded-lg hover:bg-gray-100 text-gray-400">
+            <component :is="c.ativo ? EyeOffIcon : EyeIcon" class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal novo cartão -->
+    <div v-if="formCartaoAberto" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" @click.self="formCartaoAberto = false">
+      <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5">
+        <h3 class="font-bold text-gray-900 mb-4">Novo cartão</h3>
+        <div class="space-y-3">
+          <div>
+            <label class="label">Nome do cartão</label>
+            <input v-model="novoCartao.nome" class="input" placeholder="Ex: Nubank, Inter, C6" maxlength="40" />
+          </div>
+          <div>
+            <label class="label">Bandeira <span class="text-gray-400 font-normal">(opcional)</span></label>
+            <select v-model="novoCartao.bandeira" class="input">
+              <option value="">Selecione...</option>
+              <option value="visa">Visa</option>
+              <option value="mastercard">Mastercard</option>
+              <option value="elo">Elo</option>
+              <option value="hipercard">Hipercard</option>
+              <option value="amex">American Express</option>
+            </select>
+          </div>
+          <div>
+            <label class="label">Últimos 4 dígitos <span class="text-gray-400 font-normal">(opcional)</span></label>
+            <input v-model="novoCartao.ultimos_digitos" class="input" placeholder="1234" maxlength="4" pattern="\d{4}" />
+          </div>
+          <div>
+            <label class="label">Cor</label>
+            <input v-model="novoCartao.cor" type="color" class="h-10 w-full rounded-lg border border-gray-300 cursor-pointer" />
+          </div>
+          <div class="flex gap-3 pt-2">
+            <button @click="formCartaoAberto = false" class="btn-secondary flex-1">Cancelar</button>
+            <button @click="criarCartao" :disabled="!novoCartao.nome.trim() || salvandoCartao" class="btn-primary flex-1">
+              {{ salvandoCartao ? 'Salvando...' : 'Criar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Categorias -->
     <div class="card">
       <div class="flex items-center justify-between mb-3">
@@ -120,12 +193,14 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { UsersIcon, CopyIcon, TagIcon, EyeIcon, EyeOffIcon, SmartphoneIcon, DownloadIcon, CheckCircleIcon } from 'lucide-vue-next'
+import { UsersIcon, CopyIcon, TagIcon, EyeIcon, EyeOffIcon, SmartphoneIcon, DownloadIcon, CheckCircleIcon, CreditCardIcon } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useCategoriasStore } from '@/stores/categorias'
+import { useCartoesStore } from '@/stores/cartoes'
 
 const auth       = useAuthStore()
 const cats       = useCategoriasStore()
+const cartoes    = useCartoesStore()
 const copiado    = ref(false)
 const formCatAberto = ref(false)
 const salvandoCat   = ref(false)
@@ -186,5 +261,25 @@ async function criarCategoria() {
   }
 }
 
-onMounted(() => cats.carregar())
+const formCartaoAberto = ref(false)
+const salvandoCartao   = ref(false)
+const novoCartao = ref({ nome: '', bandeira: '', ultimos_digitos: '', cor: '#6366f1' })
+
+async function criarCartao() {
+  salvandoCartao.value = true
+  try {
+    await cartoes.criar({
+      nome:            novoCartao.value.nome.trim(),
+      bandeira:        novoCartao.value.bandeira || null,
+      ultimos_digitos: novoCartao.value.ultimos_digitos || null,
+      cor:             novoCartao.value.cor,
+    })
+    formCartaoAberto.value = false
+    novoCartao.value = { nome: '', bandeira: '', ultimos_digitos: '', cor: '#6366f1' }
+  } finally {
+    salvandoCartao.value = false
+  }
+}
+
+onMounted(() => { cats.carregar(); cartoes.carregar() })
 </script>

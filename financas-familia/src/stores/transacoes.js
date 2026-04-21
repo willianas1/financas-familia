@@ -29,7 +29,7 @@ export const useTransacoesStore = defineStore('transacoes', () => {
 
     const { data, error } = await supabase
       .from('transacoes')
-      .select('*, categorias(nome, cor, icone)')
+      .select('*, categorias(nome, cor, icone), cartoes_credito(nome, cor, bandeira)')
       .eq('familia_id', auth.familiaId)
       .gte('data', inicio)
       .lte('data', fim)
@@ -43,7 +43,7 @@ export const useTransacoesStore = defineStore('transacoes', () => {
     const { data, error } = await supabase
       .from('transacoes')
       .insert({ ...payload, familia_id: auth.familiaId, membro_id: auth.user.id })
-      .select('*, categorias(nome, cor, icone)')
+      .select('*, categorias(nome, cor, icone), cartoes_credito(nome, cor, bandeira)')
       .single()
     if (error) throw error
     transacoes.value.unshift(data)
@@ -51,7 +51,7 @@ export const useTransacoesStore = defineStore('transacoes', () => {
   }
 
   async function criarParcelamento(payload) {
-    const { descricao, valor_total, num_parcelas, valor_parcela, data_inicio, tipo_calculo, categoria_id } = payload
+    const { descricao, valor_total, num_parcelas, valor_parcela, data_inicio, tipo_calculo, categoria_id, cartao_id } = payload
 
     const { data: parc, error } = await supabase
       .from('parcelamentos')
@@ -73,6 +73,7 @@ export const useTransacoesStore = defineStore('transacoes', () => {
         data:             d.toISOString().split('T')[0],
         descricao:        `${descricao} (${i + 1}/${num_parcelas})`,
         categoria_id,
+        cartao_id:        cartao_id ?? null,
         parcelamento_id:  parc.id,
         num_parcela:      i + 1,
       })
@@ -85,7 +86,7 @@ export const useTransacoesStore = defineStore('transacoes', () => {
   }
 
   async function criarRecorrente(payload) {
-    const { tipo, valor, categoria_id, data_inicio, descricao, num_meses } = payload
+    const { tipo, valor, categoria_id, cartao_id, data_inicio, descricao, num_meses } = payload
 
     const registros = []
     const dataBase  = new Date(data_inicio + 'T12:00:00')
@@ -100,6 +101,7 @@ export const useTransacoesStore = defineStore('transacoes', () => {
         data:         d.toISOString().split('T')[0],
         descricao,
         categoria_id,
+        cartao_id:    cartao_id ?? null,
       })
     }
 
