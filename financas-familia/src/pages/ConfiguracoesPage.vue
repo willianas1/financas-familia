@@ -86,6 +86,37 @@
       </div>
     </div>
 
+    <!-- Centros de custo -->
+    <div class="card">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold text-gray-900 flex items-center gap-2">
+          <FolderIcon class="w-4 h-4 text-primary-600" />
+          Centros de custo
+        </h2>
+        <button @click="abrirFormCC(null)" class="btn-primary py-1.5 px-3 text-xs">+ Novo</button>
+      </div>
+      <p class="text-xs text-gray-400 mb-3">Agrupe despesas e receitas por pessoa, projeto ou finalidade (ex: João, Viagem, Trabalho).</p>
+
+      <div v-if="!cc.centros.length" class="text-sm text-gray-400 py-1">Nenhum centro de custo cadastrado.</div>
+      <div class="divide-y divide-gray-50">
+        <div v-for="c in cc.centros" :key="c.id" class="flex items-center gap-3 py-2.5">
+          <div class="w-7 h-7 rounded-lg flex-shrink-0" :style="{ backgroundColor: c.cor }"></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">{{ c.nome }}</p>
+          </div>
+          <span :class="['text-xs px-2 py-0.5 rounded-full', c.ativo ? 'bg-green-100 text-success' : 'bg-gray-100 text-gray-400']">
+            {{ c.ativo ? 'Ativo' : 'Inativo' }}
+          </span>
+          <button @click="abrirFormCC(c)" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary-600 transition-colors">
+            <PencilIcon class="w-4 h-4" />
+          </button>
+          <button @click="confirmarExclusaoCC(c)" class="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-danger transition-colors">
+            <Trash2Icon class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Instalar app -->
     <div class="card">
       <h2 class="font-semibold text-gray-900 mb-1 flex items-center gap-2">
@@ -139,6 +170,18 @@
             <label class="label">Últimos 4 dígitos <span class="text-gray-400 font-normal">(opcional)</span></label>
             <input v-model="formCartao.ultimos_digitos" class="input" placeholder="1234" maxlength="4" />
           </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label">Dia de fechamento <span class="text-gray-400 font-normal">(opcional)</span></label>
+              <input v-model.number="formCartao.dia_fechamento" type="number" min="1" max="28" class="input" placeholder="Ex: 28" />
+              <p class="text-xs text-gray-400 mt-1">Compras após este dia vão para o próximo mês</p>
+            </div>
+            <div>
+              <label class="label">Dia de vencimento <span class="text-gray-400 font-normal">(opcional)</span></label>
+              <input v-model.number="formCartao.dia_vencimento" type="number" min="1" max="31" class="input" placeholder="Ex: 10" />
+              <p class="text-xs text-gray-400 mt-1">Dia em que a fatura vence no mês seguinte</p>
+            </div>
+          </div>
           <div>
             <label class="label">Cor</label>
             <input v-model="formCartao.cor" type="color" class="h-10 w-full rounded-lg border border-gray-300 cursor-pointer" />
@@ -186,7 +229,16 @@
           </div>
           <div>
             <label class="label">Cor</label>
-            <input v-model="formCat.cor" type="color" class="h-10 w-full rounded-lg border border-gray-300 cursor-pointer" />
+            <div class="flex items-center gap-2">
+              <input v-model="formCat.cor" type="color" class="h-10 w-14 rounded-lg border border-gray-300 cursor-pointer flex-shrink-0" />
+              <button
+                type="button"
+                @click="formCat.cor = gerarCorAleatoria(cats.categorias.map(c => c.cor))"
+                class="flex-1 h-10 rounded-xl border border-dashed border-gray-300 text-xs text-gray-500 hover:border-primary-400 hover:text-primary-600 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <span class="text-base leading-none">🎲</span> Gerar aleatória
+              </button>
+            </div>
           </div>
           <div v-if="editandoCat" class="flex items-center justify-between py-1">
             <span class="text-sm text-gray-700">Ativa</span>
@@ -202,6 +254,39 @@
             <button @click="formCatAberto = false" class="btn-secondary flex-1">Cancelar</button>
             <button @click="salvarCategoria" :disabled="!formCat.nome.trim() || salvandoCat" class="btn-primary flex-1">
               {{ salvandoCat ? 'Salvando...' : 'Salvar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal centro de custo -->
+    <div v-if="formCCAberto" class="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" @click.self="formCCAberto = false">
+      <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5">
+        <h3 class="font-bold text-gray-900 mb-4">{{ editandoCC ? 'Editar centro de custo' : 'Novo centro de custo' }}</h3>
+        <div class="space-y-3">
+          <div>
+            <label class="label">Nome</label>
+            <input v-model="formCC.nome" class="input" placeholder="Ex: João, Viagem Europa, Trabalho" maxlength="40" />
+          </div>
+          <div>
+            <label class="label">Cor</label>
+            <input v-model="formCC.cor" type="color" class="h-10 w-full rounded-lg border border-gray-300 cursor-pointer" />
+          </div>
+          <div v-if="editandoCC" class="flex items-center justify-between py-1">
+            <span class="text-sm text-gray-700">Ativo</span>
+            <button
+              type="button"
+              @click="formCC.ativo = !formCC.ativo"
+              :class="['relative w-10 h-6 rounded-full transition-colors', formCC.ativo ? 'bg-primary-600' : 'bg-gray-200']"
+            >
+              <span :class="['absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform', formCC.ativo ? 'left-5' : 'left-1']"></span>
+            </button>
+          </div>
+          <div class="flex gap-3 pt-2">
+            <button @click="formCCAberto = false" class="btn-secondary flex-1">Cancelar</button>
+            <button @click="salvarCC" :disabled="!formCC.nome.trim() || salvandoCC" class="btn-primary flex-1">
+              {{ salvandoCC ? 'Salvando...' : 'Salvar' }}
             </button>
           </div>
         </div>
@@ -255,16 +340,19 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import {
   UsersIcon, CopyIcon, TagIcon, PencilIcon, Trash2Icon,
-  SmartphoneIcon, DownloadIcon, CheckCircleIcon, CreditCardIcon,
+  SmartphoneIcon, DownloadIcon, CheckCircleIcon, CreditCardIcon, FolderIcon,
 } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 import { useCategoriasStore } from '@/stores/categorias'
 import { useCartoesStore } from '@/stores/cartoes'
+import { useCentrosCustoStore } from '@/stores/centrosCusto'
+import { gerarCorAleatoria } from '@/utils/cores'
 
 const auth    = useAuthStore()
 const cats    = useCategoriasStore()
 const cartoes = useCartoesStore()
+const cc      = useCentrosCustoStore()
 const copiado = ref(false)
 
 // --- Copiar código ---
@@ -298,13 +386,13 @@ async function instalar() {
 const formCartaoAberto = ref(false)
 const salvandoCartao   = ref(false)
 const editandoCartao   = ref(null)
-const formCartao = ref({ nome: '', bandeira: '', ultimos_digitos: '', cor: '#6366f1' })
+const formCartao = ref({ nome: '', bandeira: '', ultimos_digitos: '', cor: '#6366f1', dia_fechamento: null, dia_vencimento: null })
 
 function abrirFormCartao(c) {
   editandoCartao.value = c
   formCartao.value = c
-    ? { nome: c.nome, bandeira: c.bandeira ?? '', ultimos_digitos: c.ultimos_digitos ?? '', cor: c.cor, ativo: c.ativo }
-    : { nome: '', bandeira: '', ultimos_digitos: '', cor: '#6366f1', ativo: true }
+    ? { nome: c.nome, bandeira: c.bandeira ?? '', ultimos_digitos: c.ultimos_digitos ?? '', cor: c.cor, ativo: c.ativo, dia_fechamento: c.dia_fechamento ?? null, dia_vencimento: c.dia_vencimento ?? null }
+    : { nome: '', bandeira: '', ultimos_digitos: '', cor: '#6366f1', ativo: true, dia_fechamento: null, dia_vencimento: null }
   formCartaoAberto.value = true
 }
 
@@ -316,6 +404,8 @@ async function salvarCartao() {
       bandeira:        formCartao.value.bandeira || null,
       ultimos_digitos: formCartao.value.ultimos_digitos || null,
       cor:             formCartao.value.cor,
+      dia_fechamento:  formCartao.value.dia_fechamento || null,
+      dia_vencimento:  formCartao.value.dia_vencimento || null,
       ...(editandoCartao.value ? { ativo: formCartao.value.ativo } : {}),
     }
     if (editandoCartao.value) {
@@ -339,7 +429,7 @@ function abrirFormCat(cat) {
   editandoCat.value = cat
   formCat.value = cat
     ? { nome: cat.nome, tipo: cat.tipo, cor: cat.cor, ativa: cat.ativa }
-    : { nome: '', tipo: 'despesa', cor: '#6366f1', ativa: true }
+    : { nome: '', tipo: 'despesa', cor: gerarCorAleatoria(cats.categorias.map(c => c.cor)), ativa: true }
   formCatAberto.value = true
 }
 
@@ -380,27 +470,62 @@ async function confirmarExclusaoCat(cat) {
 
 async function desativarConfirmado() {
   const { tipo, id, ativo } = confirmacao.value
-  if (tipo === 'cartao') {
-    await cartoes.atualizar(id, { ativo: !ativo })
-  } else {
-    await cats.toggleAtiva(id)
-  }
+  if (tipo === 'cartao')    await cartoes.atualizar(id, { ativo: !ativo })
+  else if (tipo === 'cc')   await cc.atualizar(id, { ativo: !ativo })
+  else                      await cats.toggleAtiva(id)
   confirmacao.value = null
 }
 
 async function excluirConfirmado() {
   const { tipo, id } = confirmacao.value
-  if (tipo === 'cartao') {
-    await cartoes.remover(id)
-  } else {
-    await cats.remover(id)
-  }
+  if (tipo === 'cartao')    await cartoes.remover(id)
+  else if (tipo === 'cc')   await cc.remover(id)
+  else                      await cats.remover(id)
   confirmacao.value = null
+}
+
+// --- Centro de custo ---
+const formCCAberto = ref(false)
+const salvandoCC   = ref(false)
+const editandoCC   = ref(null)
+const formCC = ref({ nome: '', cor: '#6366f1', ativo: true })
+
+function abrirFormCC(c) {
+  editandoCC.value = c
+  formCC.value = c
+    ? { nome: c.nome, cor: c.cor, ativo: c.ativo }
+    : { nome: '', cor: '#6366f1', ativo: true }
+  formCCAberto.value = true
+}
+
+async function salvarCC() {
+  salvandoCC.value = true
+  try {
+    const payload = { nome: formCC.value.nome.trim(), cor: formCC.value.cor }
+    if (editandoCC.value) {
+      await cc.atualizar(editandoCC.value.id, { ...payload, ativo: formCC.value.ativo })
+    } else {
+      await cc.criar(payload)
+    }
+    formCCAberto.value = false
+  } finally {
+    salvandoCC.value = false
+  }
+}
+
+async function confirmarExclusaoCC(c) {
+  confirmacao.value = { tipo: 'cc', id: c.id, nome: c.nome, ativo: c.ativo, carregando: true, totalRegistros: 0 }
+  const { count } = await supabase
+    .from('transacoes')
+    .select('id', { count: 'exact', head: true })
+    .eq('centro_custo_id', c.id)
+  confirmacao.value = { ...confirmacao.value, carregando: false, totalRegistros: count ?? 0 }
 }
 
 onMounted(() => {
   cats.carregar()
   cartoes.carregar()
+  cc.carregar()
   window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt)
   window.addEventListener('appinstalled', onAppInstalled)
 })

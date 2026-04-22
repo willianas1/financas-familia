@@ -39,6 +39,45 @@
       </button>
     </div>
 
+    <!-- Card: Vencimentos próximos (posição 1) -->
+    <div class="card">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold text-gray-900 flex items-center gap-2">
+          <CalendarIcon class="w-4 h-4 text-primary-600" />
+          Vencimentos
+        </h2>
+        <RouterLink to="/lancamentos" class="text-xs text-primary-600 hover:underline">Ver todos</RouterLink>
+      </div>
+
+      <div v-if="carregandoVencimentos" class="space-y-2">
+        <div v-for="i in 3" :key="i" class="h-10 bg-gray-100 rounded-xl animate-pulse"></div>
+      </div>
+
+      <div v-else-if="!vencimentosProximos.length" class="text-sm text-gray-400 py-1">
+        Nenhuma despesa pendente nos próximos 30 dias.
+      </div>
+
+      <div v-else class="space-y-2">
+        <div v-for="p in vencimentosProximos" :key="p.id" class="flex items-center justify-between gap-2">
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">
+              <template v-if="p._fatura">
+                Fatura {{ p.cartao?.nome }} · {{ formatarMesFatura(p.mes_fatura) }}
+              </template>
+              <template v-else>
+                {{ p.descricao || p.categorias?.nome || '—' }}
+              </template>
+            </p>
+            <p class="text-xs text-gray-400">{{ formatarData(p.data_vencimento) }}</p>
+          </div>
+          <span :class="['text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0', badgeVencimento(p).class]">
+            {{ badgeVencimento(p).label }}
+          </span>
+          <p class="text-danger font-semibold text-sm flex-shrink-0">-{{ formatarMoeda(p.valor) }}</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Gráfico de categorias -->
     <GraficoCategorias :transacoes="transacoes.transacoes" />
 
@@ -66,26 +105,6 @@
               :style="{ width: Math.min(pct(orc), 100) + '%' }"
             ></div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Próximas parcelas -->
-    <div class="card">
-      <h2 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-        <CalendarIcon class="w-4 h-4 text-primary-600" />
-        Parcelas nos próximos 30 dias
-      </h2>
-      <div v-if="!parcelasProximas.length" class="text-sm text-gray-400 py-1">
-        Nenhuma parcela a vencer.
-      </div>
-      <div v-else class="space-y-2">
-        <div v-for="p in parcelasProximas" :key="p.id" class="flex items-center justify-between">
-          <div>
-            <p class="text-sm font-medium text-gray-900">{{ p.descricao }}</p>
-            <p class="text-xs text-gray-400">{{ formatarData(p.data) }}</p>
-          </div>
-          <p class="text-danger font-semibold text-sm">-{{ formatarMoeda(p.valor) }}</p>
         </div>
       </div>
     </div>
@@ -144,17 +163,55 @@ const primeiroNome = computed(() => auth.user?.user_metadata?.full_name?.split('
 const saldo        = computed(() => transacoes.saldo)
 const mesLabel     = computed(() => hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }))
 
-const parcelasProximas = computed(() => {
+// Vencimentos
+const carregandoVencimentos = ref(false)
+const todasPendentes        = ref([])
+
+const vencimentosProximos = computed(() => {
   const limite = new Date()
   limite.setDate(limite.getDate() + 30)
-  return transacoes.transacoes
-    .filter(t => {
-      const d = new Date(t.data + 'T12:00:00')
-      return t.parcelamento_id && d >= hoje && d <= limite
-    })
-    .sort((a, b) => a.data.localeCompare(b.data))
-    .slice(0, 5)
+  const limiteStr = limite.toISOString().split('T')[0]
+
+  const dentro = todasPendentes.value.filter(t => t.data_vencimento && t.data_vencimento <= limiteStr)
+
+  // Despesas sem cartão → exibir individualmente
+  const semCartao = dentro.filter(t => !t.cartao_id)
+
+  // Despesas com cartão → agrupar por cartao_id + mes_fatura
+  const faturaMap = {}
+  for (const t of dentro.filter(t => t.cartao_id)) {
+    const key = `${t.cartao_id}::${t.mes_fatura}`
+    if (!faturaMap[key]) {
+      faturaMap[key] = {
+        _fatura: true,
+        id: key,
+        cartao: t.cartoes_credito,
+        mes_fatura: t.mes_fatura,
+        data_vencimento: t.data_vencimento,
+        valor: 0,
+      }
+    }
+    faturaMap[key].valor += Number(t.valor)
+  }
+
+  return [...semCartao, ...Object.values(faturaMap)]
+    .sort((a, b) => (a.data_vencimento ?? '').localeCompare(b.data_vencimento ?? ''))
+    .slice(0, 6)
 })
+
+function badgeVencimento(t) {
+  const hojeStr = new Date().toISOString().split('T')[0]
+  const venc    = t.data_vencimento
+
+  if (venc < hojeStr) return { label: 'ATRASADO', class: 'bg-red-100 text-red-700' }
+  if (venc === hojeStr) return { label: 'HOJE', class: 'bg-orange-100 text-orange-700' }
+
+  const diff = Math.round(
+    (new Date(venc + 'T00:00:00') - new Date(hojeStr + 'T00:00:00')) / (1000 * 60 * 60 * 24)
+  )
+  if (diff === 1) return { label: 'AMANHÃ', class: 'bg-yellow-100 text-yellow-700' }
+  return { label: `${diff} dias`, class: 'bg-gray-100 text-gray-600' }
+}
 
 const gastosPorCategoria = computed(() => {
   const map = {}
@@ -173,7 +230,13 @@ function formatarMoeda(v) {
 }
 
 function formatarData(iso) {
+  if (!iso) return ''
   return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+}
+
+function formatarMesFatura(mes) {
+  if (!mes) return ''
+  return new Date(mes + 'T12:00:00').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 }
 
 async function carregar() {
@@ -181,12 +244,20 @@ async function carregar() {
   await cartoesStore.carregar()
   await transacoes.carregar(mes, ano)
   await orcamentos.carregar(mes, ano)
-  // Gera alertas de orçamento no sino
   await notificacoes.gerarAlertas({
     orcamentos: orcamentos.orcamentos,
     transacoesMes: transacoes.transacoes,
   })
 }
 
-onMounted(carregar)
+async function carregarVencimentos() {
+  carregandoVencimentos.value = true
+  todasPendentes.value = await transacoes.carregarPendentes()
+  carregandoVencimentos.value = false
+}
+
+onMounted(async () => {
+  await carregar()
+  await carregarVencimentos()
+})
 </script>

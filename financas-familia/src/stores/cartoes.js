@@ -3,6 +3,32 @@ import { ref, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from './auth'
 
+// Calcula o mês da fatura (YYYY-MM-01) com base na data da compra e no dia de fechamento do cartão
+export function calcularMesFatura(dataCompraStr, cartao) {
+  const d = new Date(dataCompraStr + 'T12:00:00')
+  const fechamento = cartao?.dia_fechamento
+  if (fechamento && d.getDate() > fechamento) {
+    d.setMonth(d.getMonth() + 1)
+  }
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+}
+
+// Avança um mes_fatura por N meses
+export function avancarMesFatura(mesFaturaStr, meses) {
+  const d = new Date(mesFaturaStr + 'T12:00:00')
+  d.setMonth(d.getMonth() + meses)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+}
+
+// Calcula a data de vencimento da fatura (mês seguinte ao mes_fatura + dia_vencimento)
+export function calcularVencimentoFatura(mesFaturaStr, cartao) {
+  if (!mesFaturaStr || !cartao?.dia_vencimento) return null
+  const d = new Date(mesFaturaStr + 'T12:00:00')
+  d.setMonth(d.getMonth() + 1)
+  d.setDate(cartao.dia_vencimento)
+  return d.toISOString().split('T')[0]
+}
+
 export const useCartoesStore = defineStore('cartoes', () => {
   const auth    = useAuthStore()
   const cartoes = ref([])

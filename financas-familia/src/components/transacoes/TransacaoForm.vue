@@ -39,7 +39,7 @@
           </button>
         </div>
 
-        <!-- Toggle recorrente (quando não é parcelado) -->
+        <!-- Toggle recorrente -->
         <div v-if="!form.parcelado" class="flex items-center justify-between">
           <div>
             <span class="text-sm text-gray-700">Repetir mensalmente?</span>
@@ -119,13 +119,27 @@
           </select>
         </div>
 
+        <!-- Seletor de fatura (quando cartão selecionado) -->
+        <div v-if="form.tipo === 'despesa' && form.cartao_id">
+          <label class="label">Fatura</label>
+          <select v-model="form.mes_fatura" class="input">
+            <option v-for="opt in opcoesFatura" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+          <p v-if="vencimentoFaturaLabel" class="text-xs text-primary-600 mt-1 flex items-center gap-1">
+            <CreditCardIcon class="w-3 h-3" />
+            Vence {{ vencimentoFaturaLabel }}
+          </p>
+        </div>
+
         <!-- Categoria -->
         <div>
           <div class="flex items-center justify-between mb-1">
             <label class="label mb-0">Categoria</label>
             <button
               type="button"
-              @click="novaCategoria = !novaCategoria; novaCatNome = ''; novaCatCor = '#6366f1'"
+              @click="novaCategoria = !novaCategoria; novaCatNome = ''; novaCatCor = gerarCorAleatoria(cats.categorias.map(c => c.cor))"
               class="text-xs text-primary-600 hover:underline flex items-center gap-1"
             >
               <PlusIcon class="w-3 h-3" />
@@ -143,7 +157,13 @@
               autofocus
             />
             <div class="flex items-center gap-2">
-              <input v-model="novaCatCor" type="color" class="h-8 w-12 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0" />
+              <input v-model="novaCatCor" type="color" class="h-8 w-10 rounded-lg border border-gray-200 cursor-pointer flex-shrink-0" />
+              <button
+                type="button"
+                @click="novaCatCor = gerarCorAleatoria(cats.categorias.map(c => c.cor))"
+                class="h-8 px-2 rounded-lg border border-dashed border-gray-300 text-xs text-gray-400 hover:border-primary-400 hover:text-primary-600 transition-colors flex-shrink-0"
+                title="Gerar cor aleatória"
+              >🎲</button>
               <button
                 type="button"
                 @click="criarCategoriaInline"
@@ -167,6 +187,39 @@
           <input v-model="form.data" type="date" class="input" required />
         </div>
 
+        <!-- Data de vencimento manual (só despesa sem cartão, não parcelada e não recorrente) -->
+        <div v-if="form.tipo === 'despesa' && !form.cartao_id && !form.parcelado && !form.recorrente">
+          <label class="label">
+            Data de vencimento
+            <span class="text-gray-400 font-normal">(para controle de pagamento)</span>
+          </label>
+          <input v-model="form.data_vencimento" type="date" class="input" required />
+        </div>
+
+        <!-- Toggle "Já está paga?" (só despesa avulsa) -->
+        <div v-if="form.tipo === 'despesa' && !form.parcelado && !form.recorrente" class="flex items-center justify-between">
+          <div>
+            <span class="text-sm text-gray-700">Já está paga?</span>
+            <p class="text-xs text-gray-400">Se não, ficará como pendente</p>
+          </div>
+          <button
+            type="button"
+            @click="form.ja_pago = !form.ja_pago"
+            :class="['relative w-10 h-6 rounded-full transition-colors', form.ja_pago ? 'bg-success' : 'bg-gray-200']"
+          >
+            <span :class="['absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform', form.ja_pago ? 'left-5' : 'left-1']"></span>
+          </button>
+        </div>
+
+        <!-- Centro de custo -->
+        <div v-if="ccStore.ativos.length">
+          <label class="label">Centro de custo</label>
+          <select v-model="form.centro_custo_id" class="input" required>
+            <option value="" disabled>Selecione...</option>
+            <option v-for="c in ccStore.ativos" :key="c.id" :value="c.id">{{ c.nome }}</option>
+          </select>
+        </div>
+
         <!-- Descrição -->
         <div>
           <label class="label">Descrição <span class="text-gray-400 font-normal">(opcional)</span></label>
@@ -185,10 +238,12 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { XIcon, TrendingUpIcon, TrendingDownIcon, PlusIcon } from 'lucide-vue-next'
+import { XIcon, TrendingUpIcon, TrendingDownIcon, PlusIcon, CreditCardIcon } from 'lucide-vue-next'
 import { useTransacoesStore } from '@/stores/transacoes'
 import { useCategoriasStore } from '@/stores/categorias'
-import { useCartoesStore } from '@/stores/cartoes'
+import { useCartoesStore, calcularMesFatura, calcularVencimentoFatura } from '@/stores/cartoes'
+import { useCentrosCustoStore } from '@/stores/centrosCusto'
+import { gerarCorAleatoria } from '@/utils/cores'
 
 const props = defineProps({ inicial: { type: Object, default: null } })
 const emit  = defineEmits(['fechar', 'salvo'])
@@ -196,23 +251,65 @@ const emit  = defineEmits(['fechar', 'salvo'])
 const transacoes = useTransacoesStore()
 const cats       = useCategoriasStore()
 const cartoes    = useCartoesStore()
+const ccStore    = useCentrosCustoStore()
 
 const editando = computed(() => !!props.inicial?.id)
 const hoje     = new Date().toISOString().split('T')[0]
 
 const form = ref({
-  tipo:         props.inicial?.tipo         ?? 'despesa',
-  valor:        props.inicial?.valor        ?? '',
-  categoria_id: props.inicial?.categoria_id ?? '',
-  cartao_id:    props.inicial?.cartao_id    ?? '',
-  data:         props.inicial?.data         ?? hoje,
-  descricao:    props.inicial?.descricao    ?? '',
-  parcelado:    false,
-  tipoParcela:  'total',
-  numParcelas:  2,
-  valorParcela: '',
-  recorrente:   false,
-  numMeses:     12,
+  tipo:            props.inicial?.tipo         ?? 'despesa',
+  valor:           props.inicial?.valor        ?? '',
+  categoria_id:    props.inicial?.categoria_id ?? '',
+  cartao_id:       props.inicial?.cartao_id    ?? '',
+  mes_fatura:      props.inicial?.mes_fatura    ?? null,
+  centro_custo_id: props.inicial?.centro_custo_id ?? '',
+  data:            props.inicial?.data         ?? hoje,
+  data_vencimento: props.inicial?.data_vencimento ?? hoje,
+  ja_pago:         props.inicial?.status_pagamento === 'pago' || props.inicial?.tipo === 'receita',
+  descricao:       props.inicial?.descricao    ?? '',
+  parcelado:       false,
+  tipoParcela:     'total',
+  numParcelas:     2,
+  valorParcela:    '',
+  recorrente:      false,
+  numMeses:        12,
+})
+
+// Cartão selecionado (objeto completo)
+const cartaoSelecionado = computed(() =>
+  form.value.cartao_id ? cartoes.cartoes.find(c => c.id === form.value.cartao_id) : null
+)
+
+// Mês sugerido pelo sistema com base na data e no dia de fechamento
+const mesFaturaSugerido = computed(() => {
+  const cartao = cartaoSelecionado.value
+  if (!cartao || !form.value.data) return null
+  return calcularMesFatura(form.value.data, cartao)
+})
+
+// Opções de fatura: 3 meses antes do sugerido até 4 meses depois
+const opcoesFatura = computed(() => {
+  const base = mesFaturaSugerido.value
+  if (!base) return []
+  const opts = []
+  for (let i = -3; i <= 4; i++) {
+    const d = new Date(base + 'T12:00:00')
+    d.setMonth(d.getMonth() + i)
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+    const lbl = d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    const label = (i === 0 ? '★ ' : '') + lbl.charAt(0).toUpperCase() + lbl.slice(1)
+    opts.push({ value: val, label })
+  }
+  return opts
+})
+
+// Data de vencimento da fatura selecionada
+const vencimentoFaturaLabel = computed(() => {
+  const cartao = cartaoSelecionado.value
+  if (!cartao || !form.value.mes_fatura) return null
+  const vencISO = calcularVencimentoFatura(form.value.mes_fatura, cartao)
+  if (!vencISO) return null
+  return new Date(vencISO + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
 })
 
 const tipos = [
@@ -238,13 +335,37 @@ const labelBotao = computed(() => {
 watch(() => form.value.tipo, () => {
   form.value.categoria_id = ''
   form.value.cartao_id    = ''
+  form.value.mes_fatura   = null
   novaCategoria.value     = false
 })
 
-onMounted(() => { if (!cartoes.cartoes.length) cartoes.carregar() })
+// Ao trocar cartão: reinicia mes_fatura para o sugerido
+watch(() => form.value.cartao_id, () => {
+  form.value.mes_fatura = mesFaturaSugerido.value
+})
 
-const salvando     = ref(false)
-const erro         = ref('')
+// Ao mudar a data: atualiza mes_fatura sugerido (só se ainda é igual ao anterior sugerido,
+// i.e., o usuário não escolheu manualmente)
+watch(mesFaturaSugerido, (novoSugerido, antigoSugerido) => {
+  if (!novoSugerido) return
+  if (!form.value.mes_fatura || form.value.mes_fatura === antigoSugerido) {
+    form.value.mes_fatura = novoSugerido
+  }
+})
+
+watch(() => form.value.data, (val) => {
+  if (!form.value.data_vencimento || form.value.data_vencimento < val) {
+    form.value.data_vencimento = val
+  }
+})
+
+onMounted(() => {
+  if (!cartoes.cartoes.length) cartoes.carregar()
+  if (!ccStore.centros.length) ccStore.carregar()
+})
+
+const salvando      = ref(false)
+const erro          = ref('')
 const novaCategoria = ref(false)
 const novaCatNome   = ref('')
 const novaCatCor    = ref('#6366f1')
@@ -281,43 +402,68 @@ function formatarMoeda(v) {
 
 async function salvar() {
   erro.value = ''
+  if (ccStore.ativos.length && !form.value.centro_custo_id) {
+    erro.value = 'Selecione um centro de custo.'
+    return
+  }
   salvando.value = true
   try {
     const cartaoId = form.value.tipo === 'despesa' && form.value.cartao_id ? form.value.cartao_id : null
+    const cartao   = cartaoId ? cartaoSelecionado.value : null
+
+    const ccId = form.value.centro_custo_id || null
 
     if (form.value.recorrente) {
       await transacoes.criarRecorrente({
-        tipo:         form.value.tipo,
-        valor:        Number(form.value.valor),
-        categoria_id: form.value.categoria_id,
-        cartao_id:    cartaoId,
-        data_inicio:  form.value.data,
-        descricao:    form.value.descricao || null,
-        num_meses:    form.value.numMeses,
-      })
+        tipo:            form.value.tipo,
+        valor:           Number(form.value.valor),
+        categoria_id:    form.value.categoria_id,
+        cartao_id:       cartaoId,
+        centro_custo_id: ccId,
+        data_inicio:     form.value.data,
+        descricao:       form.value.descricao || null,
+        num_meses:       form.value.numMeses,
+      }, cartao)
     } else if (form.value.parcelado && form.value.tipo === 'despesa') {
       const valorParcela = form.value.tipoParcela === 'total'
         ? form.value.valor / form.value.numParcelas
         : Number(form.value.valorParcela)
 
       await transacoes.criarParcelamento({
-        descricao:     form.value.descricao || 'Compra parcelada',
-        valor_total:   form.value.tipoParcela === 'total' ? Number(form.value.valor) : valorParcela * form.value.numParcelas,
-        num_parcelas:  form.value.numParcelas,
-        valor_parcela: valorParcela,
-        data_inicio:   form.value.data,
-        tipo_calculo:  form.value.tipoParcela,
-        categoria_id:  form.value.categoria_id,
-        cartao_id:     cartaoId,
-      })
+        descricao:       form.value.descricao || 'Compra parcelada',
+        valor_total:     form.value.tipoParcela === 'total' ? Number(form.value.valor) : valorParcela * form.value.numParcelas,
+        num_parcelas:    form.value.numParcelas,
+        valor_parcela:   valorParcela,
+        data_inicio:     form.value.data,
+        tipo_calculo:    form.value.tipoParcela,
+        categoria_id:    form.value.categoria_id,
+        cartao_id:       cartaoId,
+        centro_custo_id: ccId,
+      }, cartao)
     } else {
+      const hojeStr         = new Date().toISOString().split('T')[0]
+      const statusPagamento = form.value.tipo === 'receita' || form.value.ja_pago ? 'pago' : 'pendente'
+
+      // Para despesas com cartão: usa mes_fatura do select; data_vencimento calculada a partir dele
+      let mes_fatura      = cartaoId ? (form.value.mes_fatura || calcularMesFatura(form.value.data, cartao)) : null
+      let data_vencimento = form.value.tipo === 'despesa' ? form.value.data_vencimento : null
+
+      if (cartao) {
+        data_vencimento = calcularVencimentoFatura(mes_fatura, cartao)
+      }
+
       await transacoes.criar({
-        tipo:         form.value.tipo,
-        valor:        Number(form.value.valor),
-        categoria_id: form.value.categoria_id,
-        cartao_id:    cartaoId,
-        data:         form.value.data,
-        descricao:    form.value.descricao || null,
+        tipo:             form.value.tipo,
+        valor:            Number(form.value.valor),
+        categoria_id:     form.value.categoria_id,
+        cartao_id:        cartaoId,
+        centro_custo_id:  ccId,
+        mes_fatura,
+        data:             form.value.data,
+        descricao:        form.value.descricao || null,
+        data_vencimento,
+        status_pagamento: statusPagamento,
+        data_pagamento:   statusPagamento === 'pago' ? hojeStr : null,
       })
     }
     emit('salvo')

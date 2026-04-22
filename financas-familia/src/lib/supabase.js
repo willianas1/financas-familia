@@ -8,5 +8,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     persistSession: true,
     autoRefreshToken: true,
     flowType: 'pkce',
+    // Evita deadlock do lock de auth-token quando múltiplas queries disparam simultaneamente
+    lock: (_name, _timeout, fn) => fn(),
   },
 })
