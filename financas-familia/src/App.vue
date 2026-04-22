@@ -32,10 +32,21 @@
         >
           <div v-if="fabMenuAberto" class="flex flex-col items-end gap-2">
 
-            <!-- Ler comprovante -->
+            <!-- Carregar arquivo (imagem ou PDF da galeria/dispositivo) -->
             <label class="flex items-center gap-2 cursor-pointer">
               <span class="bg-white text-gray-700 text-xs font-medium px-3 py-1.5 rounded-full shadow-md whitespace-nowrap">
-                Ler comprovante
+                Carregar arquivo
+              </span>
+              <span class="w-10 h-10 rounded-full bg-violet-500 text-white shadow flex items-center justify-center hover:bg-violet-600 transition-colors">
+                <FolderOpenIcon class="w-5 h-5" />
+              </span>
+              <input ref="inputArquivo" type="file" accept="image/*,application/pdf" class="hidden" @change="processarFoto" />
+            </label>
+
+            <!-- Ler comprovante pela câmera -->
+            <label class="flex items-center gap-2 cursor-pointer">
+              <span class="bg-white text-gray-700 text-xs font-medium px-3 py-1.5 rounded-full shadow-md whitespace-nowrap">
+                Fotografar comprovante
               </span>
               <span class="w-10 h-10 rounded-full bg-primary-600 text-white shadow flex items-center justify-center hover:bg-primary-700 transition-colors">
                 <CameraIcon class="w-5 h-5" />
@@ -109,7 +120,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { PlusIcon, XIcon, CameraIcon, PenLineIcon } from 'lucide-vue-next'
+import { PlusIcon, XIcon, CameraIcon, PenLineIcon, FolderOpenIcon } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificacoesStore } from '@/stores/notificacoes'
 import { useTransacoesStore } from '@/stores/transacoes'
@@ -131,6 +142,7 @@ const processandoFoto = ref(false)
 const erroScan       = ref('')
 const inicialFab     = ref({ tipo: 'despesa' })
 const inputFoto      = ref(null)
+const inputArquivo   = ref(null)
 
 function abrirManual() {
   inicialFab.value    = { tipo: 'despesa' }
@@ -171,7 +183,8 @@ async function processarFoto(event) {
     setTimeout(() => { erroScan.value = '' }, 6000)
   } finally {
     processandoFoto.value = false
-    if (inputFoto.value) inputFoto.value.value = ''
+    if (inputFoto.value)    inputFoto.value.value    = ''
+    if (inputArquivo.value) inputArquivo.value.value = ''
   }
 }
 
