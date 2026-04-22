@@ -33,26 +33,8 @@
       </button>
     </div>
 
-    <!-- Resumo (só no modo lançamento) -->
-    <div v-if="filtroDe === 'data'" class="grid grid-cols-3 gap-3 mb-4">
-      <div class="card text-center p-3">
-        <p class="text-xs text-gray-500 mb-1">Receitas</p>
-        <p class="font-bold text-success text-sm">{{ formatarMoeda(transacoes.totalReceitas) }}</p>
-      </div>
-      <div class="card text-center p-3">
-        <p class="text-xs text-gray-500 mb-1">Despesas</p>
-        <p class="font-bold text-danger text-sm">{{ formatarMoeda(transacoes.totalDespesas) }}</p>
-      </div>
-      <div class="card text-center p-3">
-        <p class="text-xs text-gray-500 mb-1">Saldo</p>
-        <p :class="['font-bold text-sm', transacoes.saldo >= 0 ? 'text-success' : 'text-danger']">
-          {{ formatarMoeda(transacoes.saldo) }}
-        </p>
-      </div>
-    </div>
-
-    <!-- Filtros de tipo + status -->
-    <div class="flex gap-2 mb-4 overflow-x-auto pb-1">
+    <!-- Filtros de tipo + status (todas as abas) -->
+    <div class="flex gap-2 mb-3 overflow-x-auto pb-1">
       <button
         v-for="f in filtrosTipo"
         :key="f.value"
@@ -62,23 +44,20 @@
       >
         {{ f.label }}
       </button>
-
-      <template v-if="filtroDe !== 'data'">
-        <div class="w-px bg-gray-200 flex-shrink-0"></div>
-        <button
-          v-for="s in filtrosStatus"
-          :key="s.value"
-          @click="filtroStatus = s.value"
-          :class="['px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors',
-                   filtroStatus === s.value ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200']"
-        >
-          {{ s.label }}
-        </button>
-      </template>
+      <div class="w-px bg-gray-200 flex-shrink-0"></div>
+      <button
+        v-for="s in filtrosStatus"
+        :key="s.value"
+        @click="filtroStatus = s.value"
+        :class="['px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors',
+                 filtroStatus === s.value ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200']"
+      >
+        {{ s.label }}
+      </button>
     </div>
 
     <!-- Filtro por centro de custo -->
-    <div v-if="ccStore.centros.length" class="flex gap-2 mb-4 overflow-x-auto pb-1">
+    <div v-if="ccStore.centros.length" class="flex gap-2 mb-3 overflow-x-auto pb-1">
       <button
         @click="filtroCC = ''"
         :class="['px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
@@ -96,6 +75,61 @@
       >
         {{ c.nome }}
       </button>
+    </div>
+
+    <!-- Totalizadores dinâmicos por aba -->
+    <div v-if="!carregando" class="grid grid-cols-3 gap-2 mb-4">
+      <!-- Aba Lançamento: Receitas | Despesas | Saldo -->
+      <template v-if="filtroDe === 'data'">
+        <div class="card text-center p-3">
+          <p class="text-xs text-gray-500 mb-1">Receitas</p>
+          <p class="font-bold text-success text-sm">{{ formatarMoeda(totalReceitas) }}</p>
+        </div>
+        <div class="card text-center p-3">
+          <p class="text-xs text-gray-500 mb-1">Despesas</p>
+          <p class="font-bold text-danger text-sm">{{ formatarMoeda(totalDespesas) }}</p>
+        </div>
+        <div class="card text-center p-3">
+          <p class="text-xs text-gray-500 mb-1">Saldo</p>
+          <p :class="['font-bold text-sm', saldoFiltrado >= 0 ? 'text-success' : 'text-danger']">
+            {{ formatarMoeda(saldoFiltrado) }}
+          </p>
+        </div>
+      </template>
+
+      <!-- Aba Vencimento: Total | Pendente | Pago -->
+      <template v-else-if="filtroDe === 'data_vencimento'">
+        <div class="card text-center p-3">
+          <p class="text-xs text-gray-500 mb-1">Total</p>
+          <p class="font-bold text-danger text-sm">{{ formatarMoeda(totalDespesas) }}</p>
+        </div>
+        <div class="card text-center p-3">
+          <p class="text-xs text-gray-500 mb-1">Pendente</p>
+          <p class="font-bold text-orange-500 text-sm">{{ formatarMoeda(totalPendente) }}</p>
+        </div>
+        <div class="card text-center p-3">
+          <p class="text-xs text-gray-500 mb-1">Pago</p>
+          <p class="font-bold text-success text-sm">{{ formatarMoeda(totalPago) }}</p>
+        </div>
+      </template>
+
+      <!-- Aba Pagamento: Receitas | Despesas | Saldo -->
+      <template v-else>
+        <div class="card text-center p-3">
+          <p class="text-xs text-gray-500 mb-1">Receitas</p>
+          <p class="font-bold text-success text-sm">{{ formatarMoeda(totalReceitas) }}</p>
+        </div>
+        <div class="card text-center p-3">
+          <p class="text-xs text-gray-500 mb-1">Despesas</p>
+          <p class="font-bold text-danger text-sm">{{ formatarMoeda(totalDespesas) }}</p>
+        </div>
+        <div class="card text-center p-3">
+          <p class="text-xs text-gray-500 mb-1">Saldo</p>
+          <p :class="['font-bold text-sm', saldoFiltrado >= 0 ? 'text-success' : 'text-danger']">
+            {{ formatarMoeda(saldoFiltrado) }}
+          </p>
+        </div>
+      </template>
     </div>
 
     <!-- Lista -->
@@ -385,12 +419,19 @@ const listaFiltrada = computed(() => {
   let lista = listaBase.value
   if (filtroTipo.value !== 'todos')
     lista = lista.filter(t => t.tipo === filtroTipo.value)
-  if (filtroDe.value !== 'data' && filtroStatus.value !== 'todos')
+  if (filtroStatus.value !== 'todos')
     lista = lista.filter(t => t.status_pagamento === filtroStatus.value)
   if (filtroCC.value)
     lista = lista.filter(t => t.centro_custo_id === filtroCC.value)
   return lista
 })
+
+// Totalizadores baseados na lista filtrada (respeitam tipo, status e CC selecionados)
+const totalReceitas  = computed(() => listaFiltrada.value.filter(t => t.tipo === 'receita').reduce((s, t) => s + Number(t.valor), 0))
+const totalDespesas  = computed(() => listaFiltrada.value.filter(t => t.tipo === 'despesa').reduce((s, t) => s + Number(t.valor), 0))
+const totalPendente  = computed(() => listaFiltrada.value.filter(t => t.tipo === 'despesa' && t.status_pagamento === 'pendente').reduce((s, t) => s + Number(t.valor), 0))
+const totalPago      = computed(() => listaFiltrada.value.filter(t => t.tipo === 'despesa' && t.status_pagamento === 'pago').reduce((s, t) => s + Number(t.valor), 0))
+const saldoFiltrado  = computed(() => totalReceitas.value - totalDespesas.value)
 
 function badgeVencimentoClass(t) {
   if (!t.data_vencimento || t.status_pagamento === 'pago') return 'bg-gray-100 text-gray-500'
