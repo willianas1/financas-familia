@@ -166,31 +166,21 @@
           </p>
         </div>
 
-        <!-- Botão pagar (só para despesas pendentes) -->
-        <button
-          v-if="t.tipo === 'despesa' && t.status_pagamento === 'pendente'"
-          @click="abrirPagamento(t)"
-          class="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-50 border border-green-200 text-success text-xs font-semibold hover:bg-green-100 transition-colors flex-shrink-0"
+        <!-- Avatar do membro que lançou -->
+        <div
+          class="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center text-[9px] font-bold text-white bg-gray-400"
+          :title="t.profiles?.nome ?? 'Membro'"
         >
-          <CheckCircleIcon class="w-3.5 h-3.5" />
-          Pagar
-        </button>
+          <img v-if="t.profiles?.avatar_url" :src="t.profiles.avatar_url" class="w-full h-full object-cover" />
+          <span v-else>{{ (t.profiles?.nome ?? '?')[0].toUpperCase() }}</span>
+        </div>
 
-        <!-- Botão editar centro de custo (despesas em aberto com centros cadastrados) -->
+        <!-- Menu de ações -->
         <button
-          v-if="t.tipo === 'despesa' && t.status_pagamento === 'pendente' && ccStore.centros.length"
-          @click="abrirEditarCC(t)"
-          class="p-1 rounded-lg hover:bg-primary-50 text-gray-300 hover:text-primary-500 transition-colors flex-shrink-0"
-          title="Alterar centro de custo"
+          @click="menuAcoes = t"
+          class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors flex-shrink-0"
         >
-          <FolderIcon class="w-4 h-4" />
-        </button>
-
-        <button
-          @click="confirmarRemover(t)"
-          class="p-1 rounded-lg hover:bg-red-50 text-gray-300 hover:text-danger transition-colors flex-shrink-0"
-        >
-          <Trash2Icon class="w-4 h-4" />
+          <MoreVerticalIcon class="w-4 h-4" />
         </button>
       </div>
     </div>
@@ -274,12 +264,70 @@
         </div>
       </div>
     </div>
+
+    <!-- Action sheet de ações do lançamento -->
+    <div
+      v-if="menuAcoes"
+      class="fixed inset-0 bg-black/40 z-50 flex items-end justify-center"
+      @click.self="menuAcoes = null"
+    >
+      <div class="bg-white w-full sm:max-w-sm rounded-t-3xl pb-safe">
+        <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mt-3 mb-1"></div>
+
+        <!-- Identificação da transação -->
+        <div class="px-5 py-3 border-b border-gray-100">
+          <p class="text-sm font-semibold text-gray-900 truncate">
+            {{ menuAcoes.descricao || menuAcoes.categorias?.nome || '—' }}
+          </p>
+          <p :class="['text-sm font-bold', menuAcoes.tipo === 'receita' ? 'text-success' : 'text-danger']">
+            {{ menuAcoes.tipo === 'receita' ? '+' : '-' }}{{ formatarMoeda(menuAcoes.valor) }}
+          </p>
+        </div>
+
+        <div class="p-3 space-y-1">
+          <!-- Pagar -->
+          <button
+            v-if="menuAcoes.tipo === 'despesa' && menuAcoes.status_pagamento === 'pendente'"
+            @click="abrirPagamento(menuAcoes); menuAcoes = null"
+            class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-green-50 text-left text-success font-medium transition-colors"
+          >
+            <CheckCircleIcon class="w-5 h-5 flex-shrink-0" />
+            Pagar
+          </button>
+
+          <!-- Alterar centro de custo -->
+          <button
+            v-if="menuAcoes.tipo === 'despesa' && menuAcoes.status_pagamento === 'pendente' && ccStore.centros.length"
+            @click="abrirEditarCC(menuAcoes); menuAcoes = null"
+            class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 text-left text-gray-700 transition-colors"
+          >
+            <FolderIcon class="w-5 h-5 flex-shrink-0" />
+            Alterar centro de custo
+          </button>
+
+          <!-- Excluir -->
+          <button
+            @click="confirmarRemover(menuAcoes); menuAcoes = null"
+            class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 text-left text-danger transition-colors"
+          >
+            <Trash2Icon class="w-5 h-5 flex-shrink-0" />
+            Excluir
+          </button>
+        </div>
+
+        <div class="px-3 pb-4">
+          <button @click="menuAcoes = null" class="w-full py-3 rounded-xl bg-gray-100 text-gray-600 font-medium">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { PlusIcon, ChevronLeftIcon, ChevronRightIcon, ReceiptIcon, Trash2Icon, CheckCircleIcon, FolderIcon } from 'lucide-vue-next'
+import { PlusIcon, ChevronLeftIcon, ChevronRightIcon, ReceiptIcon, Trash2Icon, CheckCircleIcon, FolderIcon, MoreVerticalIcon } from 'lucide-vue-next'
 import { useTransacoesStore } from '@/stores/transacoes'
 import { useCategoriasStore } from '@/stores/categorias'
 import { useCentrosCustoStore } from '@/stores/centrosCusto'
@@ -290,6 +338,7 @@ const categorias  = useCategoriasStore()
 const ccStore     = useCentrosCustoStore()
 const formAberto  = ref(false)
 const removendo   = ref(null)
+const menuAcoes   = ref(null)
 const filtroTipo   = ref('todos')
 const filtroStatus = ref('todos')
 const filtroDe     = ref('data')

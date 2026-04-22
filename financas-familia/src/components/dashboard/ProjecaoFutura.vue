@@ -35,7 +35,11 @@ import { TrendingUpIcon } from 'lucide-vue-next'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 
-const auth      = useAuthStore()
+const props = defineProps({
+  centrosCustoId: { type: String, default: '' },
+})
+
+const auth       = useAuthStore()
 const carregando = ref(true)
 const projecao   = ref([])
 
@@ -52,18 +56,36 @@ onMounted(async () => {
   const resultados = await Promise.all(meses.map(async ({ mes, ano, label }) => {
     const inicio = `${ano}-${String(mes).padStart(2, '0')}-01`
     const fim    = new Date(ano, mes, 0).toISOString().split('T')[0]
-    const { data } = await supabase
+
+    // Receitas por data de lançamento
+    const { data: rd } = await supabase
       .from('transacoes')
-      .select('tipo, valor')
+      .select('valor')
       .eq('familia_id', auth.familiaId)
+      .eq('tipo', 'receita')
       .gte('data', inicio)
       .lte('data', fim)
-    const receitas = (data ?? []).filter(t => t.tipo === 'receita').reduce((s, t) => s + Number(t.valor), 0)
-    const despesas = (data ?? []).filter(t => t.tipo === 'despesa').reduce((s, t) => s + Number(t.valor), 0)
+
+    // Despesas por data de vencimento (com filtro CC opcional)
+    let qDespesas = supabase
+      .from('transacoes')
+      .select('valor')
+      .eq('familia_id', auth.familiaId)
+      .eq('tipo', 'despesa')
+      .not('data_vencimento', 'is', null)
+      .gte('data_vencimento', inicio)
+      .lte('data_vencimento', fim)
+
+    if (props.centrosCustoId) qDespesas = qDespesas.eq('centro_custo_id', props.centrosCustoId)
+
+    const { data: dd } = await qDespesas
+
+    const receitas = (rd ?? []).reduce((s, t) => s + Number(t.valor), 0)
+    const despesas = (dd ?? []).reduce((s, t) => s + Number(t.valor), 0)
     return { label, receitas, despesas, saldo: receitas - despesas }
   }))
 
-  projecao.value = resultados
+  projecao.value   = resultados
   carregando.value = false
 })
 

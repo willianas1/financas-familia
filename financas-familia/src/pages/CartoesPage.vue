@@ -340,7 +340,7 @@ async function carregarFatura() {
   const [{ data: faturaData }, { data: pendenteData }] = await Promise.all([
     supabase
       .from('transacoes')
-      .select('*, categorias(nome, cor), centros_custo(nome, cor)')
+      .select('*, categorias(nome, cor), centros_custo(nome, cor), profiles(nome, avatar_url)')
       .eq('tipo', 'despesa')
       .eq('mes_fatura', mesFaturaStr.value)
       .in('cartao_id', ids)

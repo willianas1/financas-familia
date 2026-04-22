@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from './auth'
 import { calcularMesFatura, avancarMesFatura, calcularVencimentoFatura } from './cartoes'
 
-const SELECT_FIELDS = '*, categorias(nome, cor, icone), cartoes_credito(nome, cor, bandeira), centros_custo(nome, cor)'
+const SELECT_FIELDS = '*, categorias(nome, cor, icone), cartoes_credito(nome, cor, bandeira), centros_custo(nome, cor), profiles(nome, avatar_url)'
 
 export const useTransacoesStore = defineStore('transacoes', () => {
   const auth       = useAuthStore()

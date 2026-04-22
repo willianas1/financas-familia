@@ -1,13 +1,31 @@
 <template>
   <div class="space-y-4">
-    <h1 class="text-xl font-bold text-gray-900">
-      Olá, {{ primeiroNome }}
-    </h1>
+    <div class="flex items-center justify-between gap-3">
+      <h1 class="text-xl font-bold text-gray-900">Olá, {{ primeiroNome }}</h1>
+
+      <!-- Filtro de centro de custo (salvo na sessão) -->
+      <div v-if="ccStore.ativos.length" class="flex gap-1.5 overflow-x-auto flex-shrink-0">
+        <button
+          @click="filtroCC = ''"
+          :class="['px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
+                   !filtroCC ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200']"
+        >Todos</button>
+        <button
+          v-for="c in ccStore.ativos"
+          :key="c.id"
+          @click="filtroCC = filtroCC === c.id ? '' : c.id"
+          :class="['px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors',
+                   filtroCC === c.id ? 'text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200']"
+          :style="filtroCC === c.id ? { backgroundColor: c.cor } : {}"
+        >{{ c.nome }}</button>
+      </div>
+    </div>
 
     <!-- Saldo do mês -->
-    <div :class="['rounded-2xl p-5 text-center shadow-sm', saldo >= 0 ? 'bg-success' : 'bg-danger']">
+    <div :class="['rounded-2xl p-5 text-center shadow-sm', saldoMes >= 0 ? 'bg-success' : 'bg-danger']">
       <p class="text-white/80 text-sm mb-1 capitalize">{{ mesLabel }}</p>
-      <p class="text-white text-3xl font-bold">{{ formatarMoeda(saldo) }}</p>
+      <p class="text-white text-3xl font-bold">{{ formatarMoeda(saldoMes) }}</p>
+
       <div class="flex justify-center gap-6 mt-3">
         <div class="text-center">
           <p class="text-white/70 text-xs">Receitas</p>
@@ -16,7 +34,19 @@
         <div class="w-px bg-white/20"></div>
         <div class="text-center">
           <p class="text-white/70 text-xs">Despesas</p>
-          <p class="text-white font-semibold text-sm">{{ formatarMoeda(transacoes.totalDespesas) }}</p>
+          <p class="text-white font-semibold text-sm">{{ formatarMoeda(totalDespesasMes) }}</p>
+        </div>
+      </div>
+
+      <div class="flex justify-center gap-6 mt-2 pt-2 border-t border-white/20">
+        <div class="text-center">
+          <p class="text-white/70 text-xs">Em aberto</p>
+          <p class="text-white font-semibold text-sm">{{ formatarMoeda(despesasEmAberto) }}</p>
+        </div>
+        <div class="w-px bg-white/20"></div>
+        <div class="text-center">
+          <p class="text-white/70 text-xs">Pago</p>
+          <p class="text-white font-semibold text-sm">{{ formatarMoeda(despesasPagas) }}</p>
         </div>
       </div>
     </div>
@@ -79,10 +109,10 @@
     </div>
 
     <!-- Gráfico de categorias -->
-    <GraficoCategorias :transacoes="transacoes.transacoes" />
+    <GraficoCategorias :transacoes="transacoesDashboard" />
 
     <!-- Gráfico de cartões -->
-    <GraficoCartoes :transacoes="transacoes.transacoes" :cartoes="cartoesList" />
+    <GraficoCartoes :transacoes="transacoesDashboard" :cartoes="cartoesList" />
 
     <!-- Orçamentos com progresso -->
     <div v-if="orcamentos.orcamentos.length" class="card">
@@ -110,10 +140,10 @@
     </div>
 
     <!-- Comparativo mês a mês -->
-    <GraficoComparativo />
+    <GraficoComparativo :key="`comp-${filtroCC}`" :centrosCustoId="filtroCC" />
 
     <!-- Projeção futura -->
-    <ProjecaoFutura />
+    <ProjecaoFutura :key="`proj-${filtroCC}`" :centrosCustoId="filtroCC" />
 
     <!-- Link lançamentos -->
     <RouterLink to="/lancamentos" class="card flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
@@ -126,7 +156,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { CalendarIcon, ChevronRightIcon, PlusIcon, TargetIcon } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 import { useTransacoesStore } from '@/stores/transacoes'
@@ -134,6 +164,7 @@ import { useCategoriasStore } from '@/stores/categorias'
 import { useOrcamentosStore } from '@/stores/orcamentos'
 import { useNotificacoesStore } from '@/stores/notificacoes'
 import { useCartoesStore } from '@/stores/cartoes'
+import { useCentrosCustoStore } from '@/stores/centrosCusto'
 import GraficoCategorias from '@/components/dashboard/GraficoCategorias.vue'
 import GraficoCartoes from '@/components/dashboard/GraficoCartoes.vue'
 import GraficoComparativo from '@/components/dashboard/GraficoComparativo.vue'
@@ -146,9 +177,14 @@ const categorias   = useCategoriasStore()
 const orcamentos   = useOrcamentosStore()
 const notificacoes = useNotificacoesStore()
 const cartoesStore = useCartoesStore()
+const ccStore      = useCentrosCustoStore()
 const cartoesList  = computed(() => cartoesStore.cartoes)
 const formAberto   = ref(false)
 const tipoInicial  = ref('despesa')
+
+// Filtro de centro de custo persistido na sessão
+const filtroCC = ref(sessionStorage.getItem('dashboard_filtro_cc') ?? '')
+watch(filtroCC, v => sessionStorage.setItem('dashboard_filtro_cc', v))
 
 function abrirForm(tipo) {
   tipoInicial.value = tipo
@@ -159,9 +195,35 @@ const hoje = new Date()
 const mes  = hoje.getMonth() + 1
 const ano  = hoje.getFullYear()
 
-const primeiroNome = computed(() => auth.user?.user_metadata?.full_name?.split(' ')[0] ?? 'você')
-const saldo        = computed(() => transacoes.saldo)
-const mesLabel     = computed(() => hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }))
+const primeiroNome       = computed(() => auth.user?.user_metadata?.full_name?.split(' ')[0] ?? 'você')
+const mesLabel           = computed(() => hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }))
+
+// Despesas com vencimento no mês atual (carregadas separadamente por data_vencimento)
+const despesasVencimento = ref([])
+
+// Filtro CC aplicado client-side sobre os dados já carregados
+const despesasVencimentoFiltradas = computed(() =>
+  filtroCC.value
+    ? despesasVencimento.value.filter(t => t.centro_custo_id === filtroCC.value)
+    : despesasVencimento.value
+)
+
+// Lista unificada para os gráficos: receitas (por data) + despesas (por data_vencimento, filtradas)
+const transacoesDashboard = computed(() => [
+  ...transacoes.transacoes.filter(t => t.tipo === 'receita'),
+  ...despesasVencimentoFiltradas.value,
+])
+
+const totalDespesasMes = computed(() =>
+  despesasVencimentoFiltradas.value.reduce((s, t) => s + Number(t.valor), 0)
+)
+const despesasEmAberto = computed(() =>
+  despesasVencimentoFiltradas.value.filter(t => t.status_pagamento === 'pendente').reduce((s, t) => s + Number(t.valor), 0)
+)
+const despesasPagas = computed(() =>
+  despesasVencimentoFiltradas.value.filter(t => t.status_pagamento === 'pago').reduce((s, t) => s + Number(t.valor), 0)
+)
+const saldoMes = computed(() => transacoes.totalReceitas - totalDespesasMes.value)
 
 // Vencimentos
 const carregandoVencimentos = ref(false)
@@ -215,7 +277,7 @@ function badgeVencimento(t) {
 
 const gastosPorCategoria = computed(() => {
   const map = {}
-  transacoes.transacoes.filter(t => t.tipo === 'despesa').forEach(t => {
+  despesasVencimentoFiltradas.value.forEach(t => {
     map[t.categoria_id] = (map[t.categoria_id] ?? 0) + Number(t.valor)
   })
   return map
@@ -240,10 +302,14 @@ function formatarMesFatura(mes) {
 }
 
 async function carregar() {
-  await categorias.carregar()
-  await cartoesStore.carregar()
-  await transacoes.carregar(mes, ano)
-  await orcamentos.carregar(mes, ano)
+  await Promise.all([categorias.carregar(), cartoesStore.carregar(), ccStore.carregar()])
+  await Promise.all([
+    transacoes.carregar(mes, ano),
+    transacoes.carregarPorCampoData('data_vencimento', mes, ano).then(data => {
+      despesasVencimento.value = data.filter(t => t.tipo === 'despesa')
+    }),
+    orcamentos.carregar(mes, ano),
+  ])
   await notificacoes.gerarAlertas({
     orcamentos: orcamentos.orcamentos,
     transacoesMes: transacoes.transacoes,
